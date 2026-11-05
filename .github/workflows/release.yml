@@ -213,6 +213,8 @@ jobs:
     needs: [windows, macos, linux]
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -221,6 +223,15 @@ jobs:
         with:
           node-version: 20
 
+      - name: 校验 tag 与版本一致
+        run: |
+          APP_VERSION=$(node -p 'require("./src-tauri/tauri.conf.json").version')
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          test "${GITHUB_REF_NAME#v}" = "$APP_VERSION" || {
+            echo "tag ${GITHUB_REF_NAME} 与版本 $APP_VERSION 不一致";
+            exit 1;
+          }
+
       - name: 生成 latest.json（应用内更新清单）
         # 需要签名产物（*.sig）。未配置 TAURI_SIGNING_PRIVATE_KEY 时脚本自动跳过，
         # Release 仍会正常发布，只是暂不提供应用内更新。
@@ -228,10 +239,13 @@ jobs:
           node scripts/updater-manifest.mjs --dir artifacts --out artifacts/latest.json
           if [ -f artifacts/latest.json ]; then cat artifacts/latest.json; fi
 
+      - name: 生成三平台合并产物清单
+        run: node scripts/release-manifest.mjs --assets artifacts
+
       - name: 汇总 SHA256SUMS
         run: |
           cd artifacts
-          find . -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name 'latest.json' \) -print0 \
+          find . -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.app.tar.gz' -o -name '*.sig' -o -name 'latest.json' \) -print0 \
             | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -244,8 +258,10 @@ jobs:
             artifacts/**/*.AppImage
             artifacts/**/*.deb
             artifacts/**/*.rpm
-            artifacts/**/manifest-*.json
-            artifacts/**/manifest-*.md
+            artifacts/**/*.app.tar.gz
+            artifacts/**/*.sig
+            docs/release/manifest-${{ env.APP_VERSION }}.json
+            docs/release/manifest-${{ env.APP_VERSION }}.md
             artifacts/latest.json
             artifacts/SHA256SUMS.txt
           fail_on_unmatched_files: false

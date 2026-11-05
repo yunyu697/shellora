@@ -1,14 +1,22 @@
 // 扫描打包产物目录，生成 SHA-256 清单（JSON + Markdown），供 Release 页面粘贴。
-// 用法：node scripts/release-manifest.mjs [--dir src-tauri/target/release/bundle]
+// 用法：
+//   node scripts/release-manifest.mjs [--dir src-tauri/target/release/bundle]
+//   node scripts/release-manifest.mjs --assets <下载后的 Release 资产目录>  # 三平台合一
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const argDir = process.argv.indexOf("--dir");
-const bundleDir = resolve(
+const assetsArg = process.argv.indexOf("--assets");
+const assetsMode = assetsArg > -1;
+const scanDir = resolve(
   root,
-  argDir > -1 ? process.argv[argDir + 1] : "src-tauri/target/release/bundle",
+  assetsMode
+    ? process.argv[assetsArg + 1]
+    : argDir > -1
+      ? process.argv[argDir + 1]
+      : "src-tauri/target/release/bundle",
 );
 const version = JSON.parse(readFileSync(resolve(root, "src-tauri/tauri.conf.json"), "utf8")).version;
 
@@ -23,13 +31,17 @@ function walk(dir) {
   return out;
 }
 
-if (!statSync(bundleDir, { throwIfNoEntry: false })) {
-  console.error(`产物目录不存在：${bundleDir}`);
+if (!statSync(scanDir, { throwIfNoEntry: false })) {
+  console.error(`产物目录不存在：${scanDir}`);
   process.exit(1);
 }
 
-const artifacts = walk(bundleDir)
-  .filter((f) => !/\.(sig|json)$/.test(f.path))
+// Release 资产模式只认安装包，避免把 manifest、SHA256SUMS、latest.json 也算进去。
+const installerPattern = /\.(exe|msi|dmg|appimage|deb|rpm|tar\.gz)$/i;
+const artifacts = walk(scanDir)
+  .filter((f) =>
+    assetsMode ? installerPattern.test(f.path) : !/\.(sig|json)$/.test(f.path),
+  )
   .map((f) => {
     const bytes = readFileSync(f.path);
     return {
@@ -41,18 +53,20 @@ const artifacts = walk(bundleDir)
   });
 
 // 裸二进制（未打包的 release 可执行文件）同样纳入清单。
-const profileDir = resolve(bundleDir, "..");
-for (const name of ["shellora.exe", "shellora"]) {
-  const full = join(profileDir, name);
-  if (!statSync(full, { throwIfNoEntry: false })) continue;
-  const bytes = readFileSync(full);
-  artifacts.push({
-    path: full.replaceAll("\\", "/").replace(`${root.replaceAll("\\", "/")}/`, ""),
-    name,
-    bytes: bytes.length,
-    sha256: createHash("sha256").update(bytes).digest("hex"),
-  });
-  break;
+const profileDir = resolve(scanDir, "..");
+if (!assetsMode) {
+  for (const name of ["shellora.exe", "shellora"]) {
+    const full = join(profileDir, name);
+    if (!statSync(full, { throwIfNoEntry: false })) continue;
+    const bytes = readFileSync(full);
+    artifacts.push({
+      path: full.replaceAll("\\", "/").replace(`${root.replaceAll("\\", "/")}/`, ""),
+      name,
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+    break;
+  }
 }
 
 // 旧品牌（改名前的 SSHTerm）产物保留在 bundle 目录供回溯，但不随本版发布。
