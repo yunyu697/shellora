@@ -69,6 +69,9 @@ jobs:
 
   macos:
     runs-on: macos-14
+    env:
+      # secrets 不能直接用于 if 条件，这里转成 job 级 env 再判断。
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +98,7 @@ jobs:
       # APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID 后生效；
       # 未配置时走未签名分支，避免空的 APPLE_CERTIFICATE 触发 security import 失败。
       - name: 构建 universal .app + .dmg（已签名）
-        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        if: env.HAS_APPLE_CERT == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -106,7 +109,7 @@ jobs:
         run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
 
       - name: 构建 universal .app + .dmg（未签名）
-        if: ${{ secrets.APPLE_CERTIFICATE == '' }}
+        if: env.HAS_APPLE_CERT != 'true'
         run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
 
       - name: 生成 SHA-256 清单
