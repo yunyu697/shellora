@@ -59,9 +59,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         shell: pwsh
         run: |
-          $cfg = '{"bundle":{"createUpdaterArtifacts":false}}'
-          if ($env:HAS_UPDATER_KEY -eq 'true') { $cfg = '{"bundle":{"createUpdaterArtifacts":true}}' }
-          pnpm tauri build --bundles nsis,msi --config $cfg
+          # PowerShell 传参给原生命令时会吞掉 JSON 里的双引号，这里写临时配置文件传路径。
+          $flag = if ($env:HAS_UPDATER_KEY -eq 'true') { 'true' } else { 'false' }
+          $cfgPath = Join-Path $env:RUNNER_TEMP 'updater-config.json'
+          "{`"bundle`":{`"createUpdaterArtifacts`":$flag}}" | Set-Content -LiteralPath $cfgPath -Encoding utf8NoBOM
+          Get-Content -Raw -LiteralPath $cfgPath
+          pnpm tauri build --bundles nsis,msi --config $cfgPath
 
       - name: 静默安装 / --version / 健康检查 / 静默卸载冒烟
         shell: pwsh
