@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 
 import {
   connTest,
@@ -145,6 +146,7 @@ export default function App() {
   );
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
   const [theme, setTheme] = useState<UiTheme>(() => loadUiTheme(window.localStorage));
+  const [appVersion, setAppVersion] = useState("");
   const [view, setView] = useState<View>(previewView === "connect" ? "connect" : "files");
   const [terminalOpen, setTerminalOpen] = useState(previewTerminal);
   const [railTab, setRailTab] = useState<RailTab>("all");
@@ -219,6 +221,12 @@ export default function App() {
     void probeSecret()
       .then(setProbe)
       .catch(() => setProbe(null));
+  }, []);
+
+  useEffect(() => {
+    void getVersion()
+      .then(setAppVersion)
+      .catch(() => setAppVersion(""));
   }, []);
 
   const refreshSessions = useCallback(async () => {
@@ -618,6 +626,7 @@ export default function App() {
           />
           <kbd>Ctrl K</kbd>
         </div>
+        <UpdateButton />
         <button
           type="button"
           className="iconbtn"
@@ -877,7 +886,6 @@ export default function App() {
             </button>
             <div className="usercard">
               <DataResetButton />
-              <UpdateButton />
               <span className="grow" />
               <span>{theme === "light" ? "Light" : "Dark"}</span>
             </div>
@@ -1530,7 +1538,7 @@ export default function App() {
         <span className="cell">{message ? message.text : "玻璃拟态关闭 · 实色面板"}</span>
         <span className="grow" />
         <span className="cell">{theme === "light" ? "LIGHT" : "DARK"}</span>
-        <span className="cell">Shellora 1.0.0</span>
+        <span className="cell">Shellora {appVersion ? `v${appVersion}` : "dev"}</span>
       </footer>
 
       {hostKeyPrompt ? (

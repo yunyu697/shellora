@@ -22,6 +22,12 @@ buildrun.*
 *.local
 *.pem
 *.key
+*.key.pub
+.shellora-updater/
+
+# 本地更新源夹具（latest.json 由发布流程生成，不入库）
+.updater-fixture/
+docs/release/latest.json
 
 # 本地数据
 *.db

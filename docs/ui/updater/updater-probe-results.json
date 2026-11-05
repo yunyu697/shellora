@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-11-05T12:09:54.781Z",
+  "screenshots": [
+    "01-silent-badge",
+    "02-available",
+    "02b-available-dark",
+    "03-downloading",
+    "04-ready",
+    "05-signature-error"
+  ],
+  "silentBadge": true,
+  "available": {
+    "version": "v1.0.3",
+    "from": "← v1.0.2",
+    "date": "2026-11-05",
+    "size": "5.5 MB",
+    "notes": "1. 新增应用内更新：启动静默检查、手动检查、下载进度与签名校验。\n2. 更新面板沿用 02 双栏工作站配色。\n3. 本次为本地模拟清单，不作为正式发布。",
+    "current": "当前版本 v1.0.2"
+  },
+  "progress": {
+    "active": true,
+    "percent": "45",
+    "meta": "2.5 MB / 5.5 MB / 45%"
+  },
+  "ready": {
+    "lead": "v1.0.3 已下载并通过签名校验",
+    "hint": "点击「安装并重启」后应用会关闭，由安装器完成升级。未保存的终端会话会中断。",
+    "buttons": [
+      "重新下载",
+      "安装并重启"
+    ]
+  },
+  "rejected": {
+    "code": "UPD-03",
+    "title": "签名校验失败",
+    "message": "The signature verification failed"
+  },
+  "retry": {
+    "retriedDownload": true,
+    "retriedError": true
+  },
+  "timeline": [
+    {
+      "t": "2026-11-05T12:09:45.021Z",
+      "step": "startup-silent-check",
+      "badge": true
+    },
+    {
+      "t": "2026-11-05T12:09:45.203Z",
+      "step": "update-available",
+      "version": "v1.0.3",
+      "from": "← v1.0.2",
+      "date": "2026-11-05",
+      "size": "5.5 MB",
+      "notes": "1. 新增应用内更新：启动静默检查、手动检查、下载进度与签名校验。\n2. 更新面板沿用 02 双栏工作站配色。\n3. 本次为本地模拟清单，不作为正式发布。",
+      "current": "当前版本 v1.0.2"
+    },
+    {
+      "t": "2026-11-05T12:09:47.458Z",
+      "step": "downloading",
+      "active": true,
+      "percent": "45",
+      "meta": "2.5 MB / 5.5 MB / 45%"
+    },
+    {
+      "t": "2026-11-05T12:09:48.993Z",
+      "step": "signature-verified",
+      "lead": "v1.0.3 已下载并通过签名校验",
+      "hint": "点击「安装并重启」后应用会关闭，由安装器完成升级。未保存的终端会话会中断。",
+      "buttons": [
+        "重新下载",
+        "安装并重启"
+      ]
+    },
+    {
+      "t": "2026-11-05T12:09:49.512Z",
+      "step": "bad-artifact-enabled",
+      "marker": ".updater-fixture/tamper.flag"
+    },
+    {
+      "t": "2026-11-05T12:09:51.970Z",
+      "step": "signature-rejected",
+      "code": "UPD-03",
+      "title": "签名校验失败",
+      "message": "The signature verification failed"
+    },
+    {
+      "t": "2026-11-05T12:09:54.781Z",
+      "step": "retry",
+      "retriedDownload": true,
+      "retriedError": true,
+      "code": "UPD-03"
+    }
+  ]
+}

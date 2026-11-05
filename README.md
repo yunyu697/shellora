@@ -50,6 +50,17 @@ pnpm build
 
 CI 在 Ubuntu / Windows / macOS 三平台运行上述检查；发布由 `v*` tag 触发的 `.github/workflows/release.yml` 完成。
 
+### 应用内更新的发布配置
+
+更新源为 `https://github.com/yunyu697/shellora/releases/latest/download/latest.json`，公钥写在 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。发布时在仓库 Secrets 中配置：
+
+| Secret | 说明 |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | `tauri signer generate` 生成的私钥文件内容 |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 生成密钥时设置的密码 |
+
+配置后，tag 构建会生成带签名的 updater 产物，并由 `scripts/updater-manifest.mjs` 汇总为 `latest.json` 一起发布。未配置 Secrets 时构建仍可完成，但不会生成真实升级通道。私钥只保存在本地/Secrets，不入库。
+
 ## 已知限制
 
 - **Windows x86（32 位）不支持**，仅提供 x64 构建。

@@ -26,10 +26,14 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwMjM2REM4RkExRjQ5QTkKUldTcFNSLzZ5RzBqa005Nyt0UWRhQkxOU2d4dVU3NjNkbkt1NjJFd1lMeWJUWVR1aWZlMWVsaUQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU2NThCNDZEOUNGNDZERDMKUldUVGJmU2NiYlJZVmpJU2s3bWZTNElJNzNJc0E1dDdaUnRubmk5VjcraGVYbXFiK1dOV3NYczUK",
       "endpoints": [
-        "https://updates.example.com/shellora/{{target}}/{{arch}}/{{current_version}}"
-      ]
+        "https://github.com/yunyu697/shellora/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      },
+      "requireSignedVersion": true
     }
   },
   "bundle": {
