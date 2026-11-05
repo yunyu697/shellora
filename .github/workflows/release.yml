@@ -91,10 +91,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # 签名与公证：在仓库 Secrets 配置 APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD /
-      # APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID 后生效，
-      # 否则产出为未签名 .app/.dmg（Gatekeeper 会拦截，见 docs/release/README.md）。
-      - name: 构建 universal .app + .dmg
+      # 签名与公证：配置 APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD /
+      # APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID 后生效；
+      # 未配置时走未签名分支，避免空的 APPLE_CERTIFICATE 触发 security import 失败。
+      - name: 构建 universal .app + .dmg（已签名）
+        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -102,6 +103,10 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
+
+      - name: 构建 universal .app + .dmg（未签名）
+        if: ${{ secrets.APPLE_CERTIFICATE == '' }}
         run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
 
       - name: 生成 SHA-256 清单

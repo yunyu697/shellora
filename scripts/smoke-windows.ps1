@@ -73,6 +73,8 @@ function Get-DesktopShortcut {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
+$expectedVersion = (Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json).version
+$versionPattern = "Shellora\s+" + [regex]::Escape([string]$expectedVersion)
 $nsisDir = Join-Path $root "src-tauri/target/release/bundle/nsis"
 $msiDir = Join-Path $root "src-tauri/target/release/bundle/msi"
 
@@ -121,13 +123,13 @@ Add-Check "主程序存在" (Test-Path $exe) $exe
 Add-Check "安装包不含开发夹具" (-not (Test-Path (Join-Path $installDir "fixture_sshd.exe")))
 
 $versionOut = (& $exe --version 2>&1 | Out-String).Trim()
-Add-Check "安装后 --version" ($versionOut -match "Shellora\s+1\.0\.0") $versionOut
+Add-Check "安装后 --version" ($versionOut -match $versionPattern) $versionOut
 
 $healthOut = (& $exe --health-check 2>&1 | Out-String).Trim()
 $healthOk = $false
 try {
     $health = $healthOut | ConvertFrom-Json
-    $healthOk = [bool]$health.ok -and $health.product -eq "Shellora" -and $health.version -eq "1.0.0" -and $health.db -eq "ok"
+    $healthOk = [bool]$health.ok -and $health.product -eq "Shellora" -and $health.version -eq $expectedVersion -and $health.db -eq "ok"
 } catch { $healthOk = $false }
 Add-Check "启动健康检查" $healthOk $healthOut
 
@@ -203,7 +205,7 @@ if (-not $Msi -or -not (Test-Path $Msi)) {
     Add-Check "MSI 开始菜单快捷方式存在" ($null -ne (Get-StartMenuShortcut)) "$(Get-StartMenuShortcut)"
     if ($mInstallDir) {
         $mVersion = (& (Join-Path $mInstallDir "shellora.exe") --version 2>&1 | Out-String).Trim()
-        Add-Check "MSI 安装后 --version" ($mVersion -match "Shellora\s+1\.0\.0") $mVersion
+        Add-Check "MSI 安装后 --version" ($mVersion -match $versionPattern) $mVersion
     }
 
     if ($mcode -eq 0) {
