@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Shellora",
+  "version": "1.0.0",
+  "identifier": "com.shellora.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Shellora",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwMjM2REM4RkExRjQ5QTkKUldTcFNSLzZ5RzBqa005Nyt0UWRhQkxOU2d4dVU3NjNkbkt1NjJFd1lMeWJUWVR1aWZlMWVsaUQK",
+      "endpoints": [
+        "https://updates.example.com/shellora/{{target}}/{{arch}}/{{current_version}}"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "Shellora",
+    "copyright": "Copyright (c) 2026 Shellora contributors",
+    "category": "DeveloperTool",
+    "shortDescription": "SSH terminal and dual-pane SFTP manager",
+    "longDescription": "Cross-platform SSH terminal with SFTP dual-pane file manager.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    }
+  }
+}

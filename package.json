@@ -1,0 +1,39 @@
+{
+  "name": "shellora",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 1420",
+    "build": "tsc --noEmit && vite build",
+    "lint": "tsc --noEmit",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.1.0",
+    "@tauri-apps/plugin-opener": "^2.7.2",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.1",
+    "@xterm/addon-clipboard": "^0.2.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-unicode11": "^0.8.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/addon-webgl": "^0.18.0",
+    "@xterm/xterm": "^5.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@xterm/headless": "^6.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
+  }
+}

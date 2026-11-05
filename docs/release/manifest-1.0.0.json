@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "license": "MIT",
+  "thirdPartyNotices": "THIRD_PARTY_NOTICES.md",
+  "generatedAt": "2026-11-05T00:33:23.063Z",
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/bundle/msi/Shellora_1.0.0_x64_en-US.msi",
+      "name": "Shellora_1.0.0_x64_en-US.msi",
+      "bytes": 8028160,
+      "sha256": "294dea14f7d827c617ec6ccddce61346586faf5f6be9ea587c2a943a2f10c2f2"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/msi/SSHTerm_1.0.0_x64_en-US.msi",
+      "name": "SSHTerm_1.0.0_x64_en-US.msi",
+      "bytes": 7983104,
+      "sha256": "9b17da01889ba18f4134653d7004b6c229b9aed4e00d8dc64032a8665edb660d",
+      "legacy": true
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Shellora_1.0.0_x64-setup.exe",
+      "name": "Shellora_1.0.0_x64-setup.exe",
+      "bytes": 5773475,
+      "sha256": "9f04093c8e23847d8eed091ef1c70a5a81c0ab542110b2e9599a82ab1deed50c"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/SSHTerm_1.0.0_x64-setup.exe",
+      "name": "SSHTerm_1.0.0_x64-setup.exe",
+      "bytes": 5729504,
+      "sha256": "695b0c93a0a4b301d2be0b601c9c15125ba369f261e1c61b818149cd8e96f868",
+      "legacy": true
+    },
+    {
+      "path": "src-tauri/target/release/shellora.exe",
+      "name": "shellora.exe",
+      "bytes": 20943872,
+      "sha256": "a09b50348b8396768963447b911152bc03c2b4f8d2734620cc18380510b8918b"
+    }
+  ]
+}

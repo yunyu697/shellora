@@ -1,0 +1,39 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+src-tauri/target/
+*.tsbuildinfo
+
+# 本地日志与临时文件
+*.log
+*.err
+*.out
+*.part
+build-release.*
+buildrun.*
+
+# 本地环境与密钥
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+
+# 本地数据
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# 工具生成物
+.trae-html-share-packages/
+.screenshots/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

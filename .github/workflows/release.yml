@@ -1,0 +1,192 @@
+name: release
+
+# Windows / macOS / Linux 打包矩阵。本机只验证了 Windows；macOS 与 Linux 通过本工作流在
+# GitHub 托管 runner 上构建，本地未构建（脚本见 scripts/build-release.sh）。
+#
+# 触发：
+#   - push tag v*         -> 构建 + 发布 GitHub Release
+#   - workflow_dispatch   -> 只构建并上传 artifact（不发布）
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: 版本一致性（Cargo.toml / package.json / tauri.conf.json）
+        run: node scripts/check-version.mjs
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 构建 NSIS + MSI
+        # Authenticode 签名需要代码签名证书：设置 WINDOWS_CERTIFICATE_* 并在
+        # tauri.conf.json 的 bundle.windows 配置 certificateThumbprint 后启用。
+        run: pnpm tauri build --bundles nsis,msi
+
+      - name: 静默安装 / --version / 健康检查 / 静默卸载冒烟
+        shell: pwsh
+        run: ./scripts/smoke-windows.ps1
+
+      - name: 生成 SHA-256 清单
+        run: node scripts/release-manifest.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-bundles
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            docs/release/manifest-*.json
+            docs/release/manifest-*.md
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: 版本一致性
+        run: node scripts/check-version.mjs
+
+      - run: pnpm install --frozen-lockfile
+
+      # 签名与公证：在仓库 Secrets 配置 APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD /
+      # APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID 后生效，
+      # 否则产出为未签名 .app/.dmg（Gatekeeper 会拦截，见 docs/release/README.md）。
+      - name: 构建 universal .app + .dmg
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
+
+      - name: 生成 SHA-256 清单
+        run: node scripts/release-manifest.mjs --dir src-tauri/target/universal-apple-darwin/release/bundle
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-bundles
+          path: |
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+            docs/release/manifest-*.json
+            docs/release/manifest-*.md
+
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: 安装 Tauri Linux 前置（webkit2gtk-4.1）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf libxdo-dev libssl-dev file rpm
+
+      - name: 版本一致性
+        run: node scripts/check-version.mjs
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 构建 AppImage + deb + rpm
+        run: pnpm tauri build --bundles appimage,deb,rpm
+
+      - name: 生成 SHA-256 清单
+        run: node scripts/release-manifest.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundles
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            docs/release/manifest-*.json
+            docs/release/manifest-*.md
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 汇总 SHA256SUMS
+        run: |
+          cd artifacts
+          find . -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0 \
+            | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/**/*.dmg
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/manifest-*.json
+            artifacts/**/manifest-*.md
+            artifacts/SHA256SUMS.txt
+          fail_on_unmatched_files: false
