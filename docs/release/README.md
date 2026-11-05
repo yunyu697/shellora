@@ -2,6 +2,24 @@
 
 版本：v1.0.0 · 平台：Windows x64（本机构建）、macOS universal / Linux x64（CI 脚本就绪，**未构建**）
 
+## 0. 当前发布：v1.0.2（GitHub Actions）
+
+仓库：https://github.com/yunyu697/shellora · Release：https://github.com/yunyu697/shellora/releases/tag/v1.0.2
+
+三平台均由 `.github/workflows/release.yml` 构建；Windows / macOS 产物已挂到 Release，
+Linux 产物保留在 Actions artifact（`linux-bundles`）。
+
+| 文件 | 字节 | SHA-256 |
+|---|---:|---|
+| `Shellora_1.0.2_x64-setup.exe`（NSIS） | 5,777,706 | `6a3c57b3…889e2ca` |
+| `Shellora_1.0.2_x64_en-US.msi`（WiX） | 8,028,160 | `03d97f08…5922d8a` |
+| `Shellora_1.0.2_universal.dmg`（macOS） | 16,272,540 | `9da9fe89…93a237` |
+
+完整哈希见 Release 附件 `SHA256SUMS.txt` 与 [manifest-1.0.2.json](manifest-1.0.2.json)。
+
+本次发布修复了两个 CI 问题：Windows 冒烟脚本硬编码 `1.0.0` 版本断言；macOS 在未配置
+Apple Secrets 时仍传入空 `APPLE_CERTIFICATE` 导致签名导入失败。
+
 ## 1. 版本号来源
 
 唯一来源是 [`src-tauri/Cargo.toml`](../src-tauri/Cargo.toml) 的 `version`（二进制内用

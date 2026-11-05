@@ -1,0 +1,26 @@
+{
+  "version": "1.0.2",
+  "license": "MIT",
+  "thirdPartyNotices": "THIRD_PARTY_NOTICES.md",
+  "generatedAt": "2026-11-05T09:28:54.775Z",
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/bundle/msi/Shellora_1.0.2_x64_en-US.msi",
+      "name": "Shellora_1.0.2_x64_en-US.msi",
+      "bytes": 8028160,
+      "sha256": "03d97f08b2e0ce433b4d11733d07e5eb329dc9641c775b5613eed49c55922d8a"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Shellora_1.0.2_x64-setup.exe",
+      "name": "Shellora_1.0.2_x64-setup.exe",
+      "bytes": 5777706,
+      "sha256": "6a3c57b32b67330df75de6fe4e46e795a5e8b07141066251ab99f66cf889e2ca"
+    },
+    {
+      "path": "src-tauri/target/release/shellora.exe",
+      "name": "shellora.exe",
+      "bytes": 20942336,
+      "sha256": "503eedb2ea906efb80c54f5723d7a9979d4ef5f85d91c9e5b726b911d02aaa26"
+    }
+  ]
+}

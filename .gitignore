@@ -4,6 +4,7 @@ node_modules/
 # 构建产物
 dist/
 src-tauri/target/
+.artifacts/
 *.tsbuildinfo
 
 # 本地日志与临时文件
