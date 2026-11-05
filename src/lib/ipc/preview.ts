@@ -3,7 +3,7 @@
 
 import type { ConnectionRow, DirEntry, SessionRow, TransferTask } from "./types";
 
-const LOCAL_ROOT = "C:\\Users\\Tyler Zhang\\Documents\\Trae-CN\\temp_20261104_01";
+const LOCAL_ROOT = "C:\\Users\\demo\\Projects\\shellora";
 const REMOTE_ROOT = "/var/www/shellora";
 
 const NAMES: Array<[string, boolean, number, number]> = [

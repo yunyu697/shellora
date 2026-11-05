@@ -1,40 +1,69 @@
 # Shellora
 
-跨平台 SSH 终端 + SFTP 双栏管理器。架构与里程碑见 [docs/ARCHITECTURE_AND_MILESTONES.md](docs/ARCHITECTURE_AND_MILESTONES.md)。
+Shellora 是一个跨平台 SSH 终端与 SFTP 双栏文件管理器，基于 Tauri 2 + React + Rust 构建。
 
-## 前置
+## 功能范围
 
-- Rust 1.85+（含 MSVC 构建工具；Windows 需 WebView2 运行时，Win11 自带）
-- Node 20+ 与 pnpm
-- Linux 额外需要 Tauri 官方前置（`libwebkit2gtk-4.1-dev` 等）
-- Windows 需 `cargo` 的 link.exe（VS Build Tools 的 “使用 C++ 的桌面开发”）
+- **SSH 终端**：多标签会话、密码 / 私钥 / SSH Agent 认证、跳板链、SOCKS5 / HTTP CONNECT 代理、已知主机指纹校验。
+- **SFTP 双栏工作站**：远程与本地双窗格、可交换方向、面包屑导航、多选与框选、拖拽复制。
+- **传输队列**：文件与递归目录传输、进度、暂停 / 继续 / 取消，冲突时覆盖 / 跳过 / 重命名三选。
+- **可折叠终端**：Files 屏默认收起，按需展开为上下分栏，队列区自动压缩。
+- **会话栏**：可折叠为窄图标栏，`Ctrl+B` / `Cmd+B` 快速切换；展开时定位当前会话并高亮。
+- **主题**：浅色 / 深色设计令牌主题，无写死颜色，状态持久化。
+- **更新**：内置 Tauri Updater 检查、下载、签名校验与重启安装（发布侧需配置签名密钥）。
 
-## 三条命令（开发）
+## 技术栈
 
-```powershell
+| 层 | 技术 |
+|---|---|
+| 桌面壳 | Tauri 2 |
+| 前端 | React 18 + TypeScript + Vite 5 |
+| 终端 | xterm.js（fit / WebGL / ack 流控） |
+| 后端 | Rust、russh、rusqlite |
+| 包管理 | pnpm |
+
+## 构建
+
+前置：Rust 1.85+（Windows 需 MSVC Build Tools 与 WebView2）、Node 20+、pnpm；Linux 还需 Tauri 官方系统依赖（`libwebkit2gtk-4.1-dev`、`libgtk-3-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev` 等）。
+
+```bash
 pnpm install
-cargo run --manifest-path src-tauri/Cargo.toml --features fixture --bin fixture_sshd   # 终端 A：本地 SSH 夹具，127.0.0.1:2222
-pnpm tauri dev                                                      # 终端 B：启动应用
+pnpm tauri dev          # 开发
+pnpm tauri build        # 打包（NSIS / MSI / dmg / AppImage / deb / rpm，取决于平台）
 ```
 
-应用内默认连接 `127.0.0.1:2222`，夹具账号 `alice` / `secret`。
+本地 SSH 夹具（可选）：
 
-> M0 不依赖 Docker/WSL：`fixture_sshd` 是进程内的 russh 服务（`src-tauri/src/bin/fixture_sshd.rs`），
-> 支持 pty、resize、逐字符回显，以及 `echo $TERM`、`stty size`、`exit`。
-> `scripts/dev-sshd.sh` / `scripts/dev-sshd.ps1` 是它的薄封装，等价于上面的 `cargo run`。
+```bash
+cargo run --manifest-path src-tauri/Cargo.toml --features fixture --bin fixture_sshd
+# 127.0.0.1:2222，账号 alice / secret
+```
 
 ## 校验
 
-```powershell
-cargo test --manifest-path src-tauri/Cargo.toml --features fixture --lib --tests   # 单测 + SSH 端到端
-cargo clippy --manifest-path src-tauri/Cargo.toml --features fixture --all-targets -- -D warnings
-pnpm lint && pnpm build
+```bash
+pnpm tsc --noEmit
+pnpm vitest run
+cargo test --manifest-path src-tauri/Cargo.toml --lib
+pnpm build
 ```
 
-## 目录
+CI 在 Ubuntu / Windows / macOS 三平台运行上述检查；发布由 `v*` tag 触发的 `.github/workflows/release.yml` 完成。
 
-- `src-tauri/src/`：`ssh/`（连接与认证）、`session/`（每标签 actor）、`terminal/`（合并器与信用窗口）、
-  `ipc/`（命令与 DTO）、`secret/`（钥匙串探测）、`sftp/`、`knownhost/`（M2/M4 落地）
-- `src/features/terminal/`：`useTerminal`（xterm + fit + WebGL + ack）与 `TerminalPane`
-- `src/lib/ipc/`：唯一 Rust 交互出口（`types.ts` 与 `dto.rs` 一一对应）
-- `scripts/`：`bench-ipc.ts`（IPC 基准）、`dev-sshd.*`（夹具启动）
+## 已知限制
+
+- **Windows x86（32 位）不支持**，仅提供 x64 构建。
+- Windows 安装包未做 Authenticode 签名；macOS 产物未签名 / 未公证，Gatekeeper 可能拦截；Linux 包未做发行版仓库签名。
+- 自动更新依赖发布侧签名密钥与 `latest.json`，未配置 Secrets 时不会启用真实升级通道。
+- 仅支持 SSH / SFTP，不含 SCP、FTP、WebDAV 等其他协议。
+- 未提供团队协作、同步设置或云端会话库；会话数据保存在本机。
+
+## 安全说明
+
+- 密码不写入会话库；私钥由用户指定路径读取，应用不复制私钥。
+- 首次连接需确认主机指纹，指纹变更会被阻断并提供手动删除信任记录的入口。
+- 应用不写入系统 `~/.ssh`，已知主机记录保存在应用自有数据目录。
+
+## 许可证
+
+见 [LICENSE](LICENSE)。第三方依赖许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

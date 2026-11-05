@@ -1,6 +1,6 @@
 [package]
 name = "shellora"
-version = "1.0.0"
+version = "1.0.1"
 default-run = "shellora"
 description = "Cross-platform SSH terminal and dual-pane SFTP manager"
 edition = "2021"
