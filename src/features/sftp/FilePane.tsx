@@ -363,7 +363,7 @@ export function FilePane({
         </button>
         <span className="sep">/</span>
         {breads.map((crumb) => (
-          <span key={crumb.path} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+          <span key={crumb.path} style={{ display: "inline-flex", alignItems: "center", gap: "var(--sp-1)" }}>
             <button
               type="button"
               className={crumb.path === path ? "c last" : "c"}

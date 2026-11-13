@@ -47,6 +47,12 @@ jobs:
       - name: 类型检查
         run: pnpm tsc --noEmit
 
+      - name: 间距令牌检查
+        run: pnpm lint:spacing
+
+      - name: 版本一致性检查
+        run: pnpm lint:version
+
       - name: 单元测试
         run: pnpm vitest run
 

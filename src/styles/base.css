@@ -3,6 +3,22 @@
    所有颜色均经由令牌；浅色取值来自 02-dualpane 设计稿，深色为保留主题。
    ============================================================ */
 
+/* 间距令牌：只有有限档位，组件不得再写裸 px 边距。
+   scripts/check-spacing.mjs 在 CI 里强制；确需绕过的平台常量在行尾写 no-sp-token 注释说明理由。 */
+:root {
+  --sp-0: 2px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --lh-tight: 13px;
+  --lh-small: 15px;
+  --lh-body: 20px;
+}
+
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
@@ -117,7 +133,7 @@ body {
   font-family: "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui,
     -apple-system, sans-serif;
   font-size: 13px;
-  line-height: 20px;
+  line-height: var(--lh-body);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -168,8 +184,8 @@ button {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 24px;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-5);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -204,9 +220,9 @@ button {
 .navpills {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-left: 14px;
-  padding: 3px;
+  gap: var(--sp-0);
+  margin-left: var(--sp-4);
+  padding: var(--sp-1);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -214,10 +230,10 @@ button {
 
 .navpill {
   height: 26px;
-  padding: 0 11px;
+  padding: 0 var(--sp-3);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -249,8 +265,8 @@ button {
   height: 38px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -287,7 +303,7 @@ button {
 kbd {
   height: 19px;
   min-width: 22px;
-  padding: 0 5px;
+  padding: 0 var(--sp-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -344,8 +360,8 @@ kbd {
   min-height: 0;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
-  gap: 24px;
-  padding: 20px 24px 16px;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
   transition: grid-template-columns 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -379,7 +395,7 @@ kbd {
 .rail-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .rail-head h2 {
@@ -395,7 +411,7 @@ kbd {
   font-size: 9px;
   color: var(--text-3);
   background: var(--surface-3);
-  padding: 1px 5px;
+  padding: var(--sp-0) var(--sp-1);
   border-radius: 8px;
 }
 
@@ -424,10 +440,10 @@ kbd {
 .seg {
   display: flex;
   height: 30px;
-  padding: 3px;
+  padding: var(--sp-1);
   background: var(--surface-3);
   border-radius: 7px;
-  margin-top: 12px;
+  margin-top: var(--sp-3);
 }
 
 .seg button {
@@ -454,9 +470,9 @@ kbd {
   height: 34px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 9px;
-  margin-top: 10px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+  margin-top: var(--sp-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -486,22 +502,22 @@ kbd {
 .rail-scroll {
   flex: 1;
   min-height: 0;
-  margin-top: 14px;
+  margin-top: var(--sp-4);
   overflow-y: auto;
 }
 
 .glabel {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   height: 26px;
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-3);
-  padding: 0 2px;
-  margin-top: 6px;
+  padding: 0 var(--sp-0);
+  margin-top: var(--sp-2);
 }
 
 .glabel .n {
@@ -513,13 +529,13 @@ kbd {
 
 .srow {
   width: 100%;
-  height: 52px;
+  height: 56px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 9px;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-3);
   border-radius: 9px;
-  margin-bottom: 2px;
+  margin-bottom: var(--sp-0);
   border: 1px solid transparent;
   background: transparent;
   color: inherit;
@@ -561,7 +577,7 @@ kbd {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-1);
-  line-height: 15px;
+  line-height: var(--lh-small);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -571,8 +587,8 @@ kbd {
   display: block;
   font-size: 9.5px;
   color: var(--text-3);
-  line-height: 13px;
-  margin-top: 2px;
+  line-height: var(--lh-tight);
+  margin-top: var(--sp-0);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -659,7 +675,7 @@ kbd {
 
 .rail-foot {
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: var(--sp-3);
 }
 
 .newcon {
@@ -668,7 +684,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: var(--sp-2);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -692,9 +708,9 @@ kbd {
 .usercard {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-top: 10px;
-  padding: 6px 4px;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-1);
   font-size: 10px;
   color: var(--text-3);
 }
@@ -712,7 +728,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: 10px;
+  padding-bottom: var(--sp-3);
 }
 
 .mini-list {
@@ -722,7 +738,7 @@ kbd {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
@@ -831,7 +847,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
+  padding: var(--sp-3) 0;
   color: var(--text-3);
   opacity: 0.6;
 }
@@ -840,7 +856,7 @@ kbd {
   flex: none;
   width: 22px;
   height: 1px;
-  margin: 2px 0;
+  margin: var(--sp-0) 0;
   background: var(--border);
 }
 
@@ -850,7 +866,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 10px;
+  padding-top: var(--sp-3);
 }
 
 .mini-add {
@@ -895,7 +911,7 @@ kbd {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--sp-3);
 }
 
 .center--split .queue2 {
@@ -914,7 +930,7 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .filehead h2 {
@@ -927,10 +943,10 @@ kbd {
 
 .filehead .hostchip {
   height: 22px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   border-radius: 11px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -955,8 +971,8 @@ kbd {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
-  gap: 16px;
-  margin-top: 12px;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
 }
 
 .fpanel {
@@ -983,14 +999,14 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 14px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
 }
 
 .fhead .scope {
   height: 18px;
-  padding: 0 6px;
+  padding: 0 var(--sp-2);
   border-radius: 4px;
   background: var(--surface-3);
   color: var(--text-2);
@@ -1054,8 +1070,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 0 12px;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-3);
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-2);
   overflow: hidden;
@@ -1092,12 +1108,12 @@ kbd {
 .crumb2 .sep {
   color: var(--text-3);
   font-size: 9px;
-  margin: 0 1px;
+  margin: 0 var(--sp-0);
   flex: none;
 }
 
 .crumb2 .c {
-  padding: 3px 7px;
+  padding: var(--sp-1) var(--sp-2);
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -1127,8 +1143,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 12px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
   background: var(--accent-soft);
   border-bottom: 1px solid var(--accent-line);
   font-size: 9.5px;
@@ -1147,10 +1163,10 @@ kbd {
 
 .selbar .abtn {
   height: 22px;
-  padding: 0 7px;
+  padding: 0 var(--sp-2);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   border: 1px solid var(--accent-line);
   border-radius: 5px;
   background: var(--surface);
@@ -1193,7 +1209,7 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  padding: 0 12px 0 14px;
+  padding: 0 var(--sp-3) 0 var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
   font-size: 8.5px;
   font-weight: 600;
@@ -1207,7 +1223,7 @@ kbd {
     flex: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 
 .colrow .sz {
@@ -1236,7 +1252,7 @@ kbd {
 .flist__loading {
   position: absolute;
   inset: 0 auto auto 0;
-  padding: 12px 14px;
+  padding: var(--sp-3) var(--sp-4);
   font-size: 11px;
   color: var(--text-3);
 }
@@ -1248,7 +1264,7 @@ kbd {
   height: 36px;
   display: flex;
   align-items: center;
-  padding: 0 12px 0 10px;
+  padding: 0 var(--sp-3) 0 var(--sp-3);
   border-bottom: 1px solid var(--border-soft);
   font-size: 11px;
   color: var(--text-1);
@@ -1292,7 +1308,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 3px;
   flex: none;
-  margin-right: 7px;
+  margin-right: var(--sp-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1320,7 +1336,7 @@ kbd {
   align-items: center;
   justify-content: center;
   flex: none;
-  margin-right: 8px;
+  margin-right: var(--sp-2);
 }
 
 .frow .ftile .ic {
@@ -1333,7 +1349,7 @@ kbd {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
 }
 
 .frow .nm > span {
@@ -1365,7 +1381,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 4px;
+  margin-left: var(--sp-1);
   color: var(--accent);
   flex: none;
 }
@@ -1376,7 +1392,7 @@ kbd {
 }
 
 .fpane__note {
-  padding: 4px 12px;
+  padding: var(--sp-1) var(--sp-3);
   font-size: 10px;
   color: var(--warning);
   border-top: 1px solid var(--border-soft);
@@ -1425,8 +1441,8 @@ kbd {
   height: 24px;
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 9px;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
   background: var(--accent);
   border-radius: 5px;
   color: var(--accent-on);
@@ -1447,8 +1463,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
   border-top: 1px solid var(--border-soft);
   font-size: 9px;
   color: var(--text-3);
@@ -1467,7 +1483,7 @@ kbd {
 .ffoot .st {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .ffoot .st .dot {
@@ -1489,7 +1505,7 @@ kbd {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--sp-3);
   position: relative;
 }
 
@@ -1547,7 +1563,7 @@ kbd {
   position: relative;
   z-index: 1;
   background: var(--bg);
-  padding: 2px 4px;
+  padding: var(--sp-0) var(--sp-1);
 }
 
 /* ---------------- 传输队列 ---------------- */
@@ -1569,8 +1585,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 14px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -1589,7 +1605,7 @@ kbd {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   font-family: var(--mono);
   font-size: 9px;
   color: var(--text-3);
@@ -1636,8 +1652,8 @@ kbd {
   min-height: 44px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 14px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
   font-size: 10px;
 }
@@ -1696,7 +1712,7 @@ kbd {
   font-family: var(--mono);
   font-size: 8.5px;
   color: var(--text-3);
-  margin-top: 1px;
+  margin-top: var(--sp-0);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1790,7 +1806,7 @@ kbd {
 
 .qbadge {
   height: 18px;
-  padding: 0 6px;
+  padding: 0 var(--sp-2);
   border-radius: 4px;
   font-size: 8px;
   letter-spacing: 0.06em;
@@ -1820,23 +1836,23 @@ kbd {
 
 .qempty {
   margin: 0;
-  padding: 22px 14px;
+  padding: var(--sp-5) var(--sp-4);
   font-size: 11px;
   color: var(--text-3);
 }
 
 .qrow2--group {
   flex-wrap: wrap;
-  padding-top: 6px;
-  padding-bottom: 6px;
+  padding-top: var(--sp-2);
+  padding-bottom: var(--sp-2);
 }
 
 .qgroup__policy {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 0 2px;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0 var(--sp-0);
   font-size: 9px;
   color: var(--warning);
 }
@@ -1847,10 +1863,10 @@ kbd {
 
 .abtn {
   height: 22px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   border: 1px solid var(--accent-line);
   border-radius: 5px;
   background: var(--surface);
@@ -1866,8 +1882,8 @@ kbd {
 .tgrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
 }
 
 .tgrid .field2:last-child {
@@ -1877,10 +1893,10 @@ kbd {
 .tchk {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   font-size: 11px;
   color: var(--text-2);
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-1);
 }
 
 .srow .tx {
@@ -1894,9 +1910,9 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   height: 34px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-2);
   overflow-x: auto;
@@ -1905,9 +1921,9 @@ kbd {
 .termtab {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-0);
   height: 24px;
-  padding: 0 4px 0 8px;
+  padding: 0 var(--sp-1) 0 var(--sp-2);
   border: 1px solid transparent;
   border-radius: 5px;
   flex: none;
@@ -1922,7 +1938,7 @@ kbd {
 .termtab__label {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   border: 0;
   background: transparent;
   color: var(--text-2);
@@ -1993,7 +2009,7 @@ kbd {
 .qgroup__children {
   list-style: none;
   margin: 0;
-  padding: 0 14px 6px 47px;
+  padding: 0 var(--sp-4) var(--sp-2) var(--sp-7);
   max-height: 120px;
   overflow-y: auto;
 }
@@ -2001,8 +2017,8 @@ kbd {
 .qchild {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 2px 0;
+  gap: var(--sp-2);
+  padding: var(--sp-0) 0;
   font-size: 10px;
   color: var(--text-3);
 }
@@ -2023,7 +2039,7 @@ kbd {
 .sftp-notice {
   margin: 0;
   max-width: 380px;
-  padding: 6px 12px;
+  padding: var(--sp-2) var(--sp-3);
   font-size: 10px;
   color: var(--warning);
   border: 1px solid var(--warning-line);
@@ -2062,8 +2078,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
   cursor: pointer;
   border: 0;
   background: transparent;
@@ -2108,10 +2124,10 @@ kbd {
 
 .termbar .thbtn {
   height: 26px;
-  padding: 0 9px;
+  padding: 0 var(--sp-2);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   border-radius: 6px;
   color: var(--text-2);
   font-size: 10px;
@@ -2159,8 +2175,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-2);
   font-size: 10.5px;
@@ -2192,7 +2208,7 @@ kbd {
 .pane__theme {
   max-width: 150px;
   height: 24px;
-  padding: 0 6px;
+  padding: 0 var(--sp-2);
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--surface);
@@ -2203,8 +2219,8 @@ kbd {
 .pane__search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-2);
   font-size: 10px;
@@ -2215,7 +2231,7 @@ kbd {
 .pane__search-input {
   flex: 1;
   min-width: 140px;
-  padding: 4px 8px;
+  padding: var(--sp-1) var(--sp-2);
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--surface);
@@ -2239,7 +2255,7 @@ kbd {
 .pane__check {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   color: var(--text-2);
   white-space: nowrap;
 }
@@ -2247,8 +2263,8 @@ kbd {
 .pane__notice {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
   border-bottom: 1px solid var(--border-soft);
   background: var(--warning-soft);
   color: var(--warning);
@@ -2259,7 +2275,7 @@ kbd {
 .pane__term {
   flex: 1;
   min-height: 0;
-  padding: 4px 8px;
+  padding: var(--sp-1) var(--sp-2);
   overflow: hidden;
   background: var(--surface-2);
 }
@@ -2275,7 +2291,7 @@ kbd {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--sp-4);
   overflow-y: auto;
 }
 
@@ -2284,19 +2300,19 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 11px;
   box-shadow: var(--shadow-1);
-  padding: 14px 16px;
+  padding: var(--sp-4) var(--sp-4);
 }
 
 .scard .sh {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-3);
-  margin-bottom: 10px;
+  margin-bottom: var(--sp-3);
 }
 
 .scard .sh .ic {
@@ -2312,7 +2328,7 @@ kbd {
 .facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 9px 12px;
+  gap: var(--sp-2) var(--sp-3);
 }
 
 .fact .k {
@@ -2326,7 +2342,7 @@ kbd {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text-1);
-  margin-top: 1px;
+  margin-top: var(--sp-0);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2335,11 +2351,11 @@ kbd {
 .xfercard .file {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--sp-2);
   font-size: 10.5px;
   color: var(--text-1);
   font-weight: 500;
-  margin-bottom: 9px;
+  margin-bottom: var(--sp-2);
 }
 
 .xfercard .file .ftile {
@@ -2382,7 +2398,7 @@ kbd {
 .xmeta {
   display: flex;
   align-items: center;
-  margin-top: 7px;
+  margin-top: var(--sp-2);
   font-family: var(--mono);
   font-size: 9px;
   color: var(--text-3);
@@ -2391,7 +2407,7 @@ kbd {
 .xmeta b {
   color: var(--accent);
   font-weight: 600;
-  margin-right: 8px;
+  margin-right: var(--sp-2);
 }
 
 .xmeta .grow {
@@ -2401,7 +2417,7 @@ kbd {
 .recent .frowx {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   height: 34px;
   border-top: 1px solid var(--border-soft);
   font-size: 10px;
@@ -2460,7 +2476,7 @@ kbd {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 18px 24px;
+  padding: var(--sp-4) var(--sp-5);
 }
 
 .conntop {
@@ -2468,13 +2484,13 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--sp-2);
 }
 
 .conntop .back {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   border: 0;
   background: transparent;
   color: var(--text-2);
@@ -2517,8 +2533,8 @@ kbd {
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 24px;
-  margin-top: 14px;
+  gap: var(--sp-5);
+  margin-top: var(--sp-4);
 }
 
 .editor2 {
@@ -2539,8 +2555,8 @@ kbd {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 0 20px;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-5);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -2565,7 +2581,7 @@ kbd {
 .ehead2 .sub {
   font-size: 9.5px;
   color: var(--text-3);
-  margin-top: 1px;
+  margin-top: var(--sp-0);
 }
 
 .ehead2 .grow {
@@ -2574,7 +2590,7 @@ kbd {
 
 .warnchip {
   height: 22px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   border-radius: 11px;
   background: var(--warning-soft);
   border: 1px solid var(--warning-line);
@@ -2584,7 +2600,7 @@ kbd {
   letter-spacing: 0.08em;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .warnchip .ic {
@@ -2596,18 +2612,18 @@ kbd {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 22px 0;
+  padding: var(--sp-4) var(--sp-5) 0;
 }
 
 .fsec2 {
-  margin-bottom: 10px;
+  margin-bottom: var(--sp-3);
 }
 
 .fsec2 .sh2 {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 9px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
 }
 
 .fsec2 .lbl2 {
@@ -2632,26 +2648,26 @@ kbd {
 .g2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 14px;
+  gap: var(--sp-3) var(--sp-4);
 }
 
 .g3 {
   display: grid;
   grid-template-columns: 1.5fr 92px 1fr;
-  gap: 14px;
+  gap: var(--sp-4);
 }
 
 .field2 {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--sp-1);
   min-width: 0;
 }
 
 .field2 .lb2 {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-size: 10px;
   color: var(--text-2);
 }
@@ -2669,7 +2685,7 @@ kbd {
 .in2 {
   height: 34px;
   width: 100%;
-  padding: 0 10px;
+  padding: 0 var(--sp-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -2701,15 +2717,15 @@ select.in2 {
   background: var(--surface-2);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 20px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-5);
   margin-top: auto;
 }
 
 .efoot2 .test {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-size: 9.5px;
   color: var(--success);
 }
@@ -2728,20 +2744,20 @@ select.in2 {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--sp-3);
   overflow-y: auto;
 }
 
 .hklabel {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-3);
-  padding-top: 2px;
+  padding-top: var(--sp-0);
 }
 
 .hklabel .ln {
@@ -2752,19 +2768,19 @@ select.in2 {
 
 .hknote {
   font-size: 9px;
-  line-height: 15px;
+  line-height: var(--lh-small);
   color: var(--text-3);
-  padding: 0 2px;
+  padding: 0 var(--sp-0);
 }
 
 /* ---------------- 按钮 / 字段（通用） ---------------- */
 
 .btn {
   height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -2805,7 +2821,7 @@ select.in2 {
   background: transparent;
   box-shadow: none;
   height: 28px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
 }
 
 .btn--ghost:hover:not(:disabled) {
@@ -2827,14 +2843,14 @@ select.in2 {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-1);
   font-size: 12px;
   color: var(--text-2);
 }
 
 .field input,
 .field select {
-  padding: 7px 9px;
+  padding: var(--sp-2) var(--sp-2);
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -2852,7 +2868,7 @@ select.in2 {
 .field-row {
   display: grid;
   grid-template-columns: 1fr 88px;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .field-row--pair {
@@ -2862,13 +2878,13 @@ select.in2 {
 .form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .form__actions {
   display: flex;
-  gap: 6px;
-  margin-top: 4px;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
 }
 
 .hint {
@@ -2908,7 +2924,7 @@ select.in2 {
   align-items: center;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 0 24px;
+  padding: 0 var(--sp-5);
   font-size: 10.5px;
   color: var(--text-3);
 }
@@ -2916,9 +2932,9 @@ select.in2 {
 .statusbar .cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
   border-right: 1px solid var(--border-soft);
 }
 
@@ -2981,8 +2997,8 @@ select.in2 {
 .modal {
   width: min(560px, 92vw);
   display: grid;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
 }
 
 .modal__title {
@@ -2994,7 +3010,7 @@ select.in2 {
 .fingerprint {
   display: grid;
   grid-template-columns: 96px 1fr;
-  gap: 4px 8px;
+  gap: var(--sp-1) var(--sp-2);
   margin: 0;
   font-size: 11px;
 }
@@ -3014,29 +3030,29 @@ select.in2 {
   width: min(560px, 92vw);
   max-height: 86vh;
   overflow: auto;
-  padding: 20px 22px;
+  padding: var(--sp-5) var(--sp-5);
 }
 
 .settings-card__title {
-  margin: 0 0 12px;
+  margin: 0 0 var(--sp-3);
   font-size: 16px;
 }
 
 .settings-card__hint {
-  margin: 0 0 8px;
+  margin: 0 0 var(--sp-2);
   color: var(--text-2);
   font-size: 11px;
 }
 
 .settings-card__warn {
-  margin: 0 0 10px;
+  margin: 0 0 var(--sp-3);
   color: var(--warning);
   font-size: 12px;
   line-height: 1.5;
 }
 
 .settings-card__ok {
-  margin: 0 0 8px;
+  margin: 0 0 var(--sp-2);
   color: var(--success);
   font-size: 12px;
   line-height: 1.5;
@@ -3044,8 +3060,8 @@ select.in2 {
 
 .settings-scope {
   display: flex;
-  gap: 10px;
-  margin: 0 0 14px;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-4);
   padding: 0;
   border: 0;
 }
@@ -3053,8 +3069,8 @@ select.in2 {
 .settings-radio {
   flex: 1;
   display: flex;
-  gap: 8px;
-  padding: 10px;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 12px;
@@ -3063,13 +3079,13 @@ select.in2 {
 
 .settings-radio small {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--sp-0);
   color: var(--text-3);
   font-size: 10px;
 }
 
 .settings-list {
-  margin: 0 0 14px;
+  margin: 0 0 var(--sp-4);
   padding: 0;
   list-style: none;
 }
@@ -3077,15 +3093,15 @@ select.in2 {
 .settings-list li {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
+  gap: var(--sp-0);
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 11px;
 }
 
 .settings-list li + li {
-  margin-top: 6px;
+  margin-top: var(--sp-2);
 }
 
 .settings-list span {
@@ -3095,14 +3111,14 @@ select.in2 {
 .settings-check {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 14px;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-4);
   font-size: 12px;
 }
 
 /* 设置卡片里的分组与开关行（托盘，1.0.10） */
 .settings-section {
-  margin: 0 0 8px;
+  margin: 0 0 var(--sp-2);
   color: var(--text-3);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -3112,9 +3128,9 @@ select.in2 {
 .settings-field {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin: 0 0 10px;
-  padding: 10px;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-3);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 12px;
@@ -3122,12 +3138,12 @@ select.in2 {
 }
 
 .settings-field input {
-  margin-top: 2px;
+  margin-top: var(--sp-0);
 }
 
 .settings-field span {
   display: grid;
-  gap: 3px;
+  gap: var(--sp-1);
 }
 
 .settings-field small {
@@ -3139,7 +3155,7 @@ select.in2 {
 .settings-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 /* 托盘首次驻留提示（1.0.10）：窗口隐藏前短暂可见 */
@@ -3150,8 +3166,8 @@ select.in2 {
   z-index: 80;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -3179,7 +3195,7 @@ select.in2 {
 
 .paste-guard__card {
   width: min(520px, 88vw);
-  padding: 18px 20px;
+  padding: var(--sp-4) var(--sp-5);
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
@@ -3187,20 +3203,20 @@ select.in2 {
 }
 
 .paste-guard__title {
-  margin: 0 0 8px;
+  margin: 0 0 var(--sp-2);
   font-size: 15px;
 }
 
 .paste-guard__summary {
-  margin: 0 0 10px;
+  margin: 0 0 var(--sp-3);
   color: var(--warning);
   font-size: 12px;
 }
 
 .paste-guard__preview {
   max-height: 160px;
-  margin: 0 0 10px;
-  padding: 8px 10px;
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -3211,7 +3227,7 @@ select.in2 {
 }
 
 .paste-guard__hint {
-  margin: 0 0 14px;
+  margin: 0 0 var(--sp-4);
   color: var(--text-2);
   font-size: 11px;
   line-height: 1.5;
@@ -3220,7 +3236,7 @@ select.in2 {
 .paste-guard__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 /* ---------------- 冲突弹窗（覆盖 / 跳过 / 重命名） ---------------- */
@@ -3244,8 +3260,8 @@ select.in2 {
 
 .cfhead2 {
   display: flex;
-  gap: 12px;
-  padding: 20px 22px 15px;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
   flex: none;
 }
@@ -3276,9 +3292,9 @@ select.in2 {
 }
 
 .cfhead2 p {
-  margin: 4px 0 0;
+  margin: var(--sp-1) 0 0;
   font-size: 11.5px;
-  line-height: 17px;
+  line-height: var(--lh-small);
   color: var(--text-2);
   word-break: break-all;
 }
@@ -3290,7 +3306,7 @@ select.in2 {
   font-size: 10px;
   color: var(--text-3);
   flex: none;
-  padding-top: 2px;
+  padding-top: var(--sp-0);
 }
 
 .cfhead2 .cnt2 b {
@@ -3301,21 +3317,21 @@ select.in2 {
 }
 
 .cfbody2 {
-  padding: 16px 22px 18px;
+  padding: var(--sp-4) var(--sp-5) var(--sp-4);
   overflow-y: auto;
 }
 
 .cmp2 {
   display: grid;
   grid-template-columns: 1fr 20px 1fr;
-  gap: 8px;
-  margin-bottom: 15px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
 }
 
 .fcard2 {
   border: 1px solid var(--border);
   border-radius: 9px;
-  padding: 10px;
+  padding: var(--sp-3);
   background: var(--surface-2);
   min-width: 0;
 }
@@ -3323,12 +3339,12 @@ select.in2 {
 .fcard2 .tagrow {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-size: 8px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-3);
-  margin-bottom: 7px;
+  margin-bottom: var(--sp-2);
 }
 
 .fcard2 .tagrow .src {
@@ -3342,11 +3358,11 @@ select.in2 {
 .fcard2 .fn2 {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--sp-2);
   font-size: 11.5px;
   color: var(--text-1);
   font-weight: 600;
-  margin-bottom: 7px;
+  margin-bottom: var(--sp-2);
 }
 
 .fcard2 .fn2 .ftile {
@@ -3370,7 +3386,7 @@ select.in2 {
 .fcard2 .meta2 {
   font-family: var(--mono);
   font-size: 8.5px;
-  line-height: 14px;
+  line-height: var(--lh-small);
   color: var(--text-3);
 }
 
@@ -3388,8 +3404,8 @@ select.in2 {
 
 .optrow {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
 }
 
 .opt2 {
@@ -3397,7 +3413,7 @@ select.in2 {
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface-2);
-  padding: 10px;
+  padding: var(--sp-3);
   position: relative;
   text-align: left;
   color: inherit;
@@ -3413,7 +3429,7 @@ select.in2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 7px;
+  margin-bottom: var(--sp-2);
 }
 
 .opt2 .ico .ic {
@@ -3431,9 +3447,9 @@ select.in2 {
 .opt2 span {
   display: block;
   font-size: 9.5px;
-  line-height: 14px;
+  line-height: var(--lh-small);
   color: var(--text-3);
-  margin-top: 3px;
+  margin-top: var(--sp-1);
 }
 
 .opt2 .radio {
@@ -3469,11 +3485,11 @@ select.in2 {
 
 .ren2 {
   height: 32px;
-  margin: 0 0 6px;
-  padding: 0 9px;
+  margin: 0 0 var(--sp-2);
+  padding: 0 var(--sp-2);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -3494,7 +3510,7 @@ select.in2 {
 }
 
 .cfnote {
-  margin: 0 0 10px;
+  margin: 0 0 var(--sp-3);
   font-size: 9px;
   color: var(--success);
 }
@@ -3502,10 +3518,10 @@ select.in2 {
 .applyrow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   font-size: 10.5px;
   color: var(--text-2);
-  padding-top: 2px;
+  padding-top: var(--sp-0);
 }
 
 .applyrow .r {
@@ -3520,8 +3536,8 @@ select.in2 {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 22px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-5);
   border-top: 1px solid var(--border-soft);
   background: var(--surface-2);
 }
@@ -3542,8 +3558,8 @@ select.in2 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px;
+  gap: var(--sp-2);
+  padding: var(--sp-5);
   text-align: center;
   color: var(--text-3);
 }
@@ -3562,7 +3578,7 @@ select.in2 {
 
 .empty2 span {
   font-size: 10px;
-  line-height: 15px;
+  line-height: var(--lh-small);
   max-width: 40ch;
 }
 
@@ -3570,15 +3586,15 @@ select.in2 {
 .selftest {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
   height: 100%;
-  padding: 12px;
+  padding: var(--sp-3);
   overflow: auto;
 }
 
 .selftest__bar {
   display: flex;
-  gap: 14px;
+  gap: var(--sp-4);
   font-size: 11px;
   color: var(--text-2);
 }
@@ -3589,7 +3605,7 @@ select.in2 {
 
 .selftest__out {
   margin: 0;
-  padding: 8px;
+  padding: var(--sp-2);
   border: 1px solid var(--border);
   background: var(--surface-2);
   font-size: 11px;
@@ -3645,8 +3661,8 @@ select.in2 {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-2);
 }
@@ -3686,7 +3702,7 @@ select.in2 {
 }
 
 .upd-title p {
-  margin: 2px 0 0;
+  margin: var(--sp-0) 0 0;
   font-family: var(--mono);
   font-size: 9.5px;
   color: var(--text-3);
@@ -3694,18 +3710,18 @@ select.in2 {
 
 .upd-body {
   min-height: 0;
-  padding: 16px 18px 18px;
+  padding: var(--sp-4) var(--sp-4) var(--sp-4);
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--sp-3);
 }
 
 .upd-center {
   align-items: center;
   text-align: center;
-  padding-top: 30px;
-  padding-bottom: 26px;
+  padding-top: var(--sp-6);
+  padding-bottom: var(--sp-5);
 }
 
 .upd-lead {
@@ -3749,7 +3765,7 @@ select.in2 {
 .upd-version {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   flex-wrap: wrap;
 }
 
@@ -3767,7 +3783,7 @@ select.in2 {
 }
 
 .upd-date {
-  padding: 1px 6px;
+  padding: var(--sp-0) var(--sp-2);
   border: 1px solid var(--border);
   border-radius: 999px;
   font-family: var(--mono);
@@ -3778,7 +3794,7 @@ select.in2 {
 .upd-size {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text-2);
@@ -3793,11 +3809,11 @@ select.in2 {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
-  padding: 10px 12px;
+  padding: var(--sp-3) var(--sp-3);
 }
 
 .upd-notes__label {
-  margin: 0 0 6px;
+  margin: 0 0 var(--sp-2);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3857,8 +3873,8 @@ select.in2 {
 
 .upd-error {
   display: flex;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
   border: 1px solid var(--danger-line);
   border-radius: 8px;
   background: var(--danger-soft);
@@ -3867,7 +3883,7 @@ select.in2 {
 .upd-error__code {
   flex: none;
   align-self: flex-start;
-  padding: 2px 7px;
+  padding: var(--sp-0) var(--sp-2);
   border: 1px solid var(--danger-line);
   border-radius: 5px;
   font-family: var(--mono);
@@ -3876,7 +3892,7 @@ select.in2 {
 }
 
 .upd-error__title {
-  margin: 0 0 3px;
+  margin: 0 0 var(--sp-1);
   font-size: 12px;
   font-weight: 600;
   color: var(--danger);
@@ -3911,8 +3927,8 @@ select.in2 {
 
 .app--next .topbar {
   height: 36px;
-  padding: 0 10px;
-  gap: 8px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .app--next .brandmark {
@@ -3937,15 +3953,15 @@ select.in2 {
 }
 
 .app--next .navpills {
-  gap: 2px;
+  gap: var(--sp-0);
 }
 
 .app--next .navpill {
   height: 24px;
-  padding: 0 9px;
+  padding: 0 var(--sp-2);
   font-size: 11px;
   border-radius: 5px;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .app--next .navpill .ic {
@@ -3971,8 +3987,8 @@ select.in2 {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   overflow: hidden;
@@ -3985,8 +4001,8 @@ select.in2 {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 7px;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
@@ -4029,7 +4045,7 @@ select.in2 {
 .sb-tabs {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-1);
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -4044,9 +4060,9 @@ select.in2 {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   max-width: 220px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
@@ -4095,7 +4111,7 @@ select.in2 {
 .sb-empty {
   font-size: 11px;
   color: var(--text-3);
-  padding-left: 4px;
+  padding-left: var(--sp-1);
   white-space: nowrap;
 }
 
@@ -4117,7 +4133,7 @@ select.in2 {
   min-width: 0;
   min-height: 0;
   display: block;
-  padding: 8px;
+  padding: var(--sp-3);
   gap: 0;
   overflow: hidden;
 }
@@ -4129,12 +4145,12 @@ select.in2 {
 }
 
 .app--next .center--stage[data-panel="open"][data-layout="push"] .termcard--stage {
-  margin-right: calc(var(--panel-w, 420px) + 6px);
+  margin-right: calc(var(--panel-w, 420px) + var(--sp-3));
 }
 
 .app--next .termcard--stage .termbar {
-  height: 32px;
-  padding: 0 10px;
+  height: 36px;
+  padding: 0 var(--sp-4);
 }
 
 .app--next .termcard--stage .termbar .htile {
@@ -4152,14 +4168,14 @@ select.in2 {
   min-height: 0;
 }
 
-/* 会话库：248px 浮层，不再挤压主视区 */
+/* 会话库：272px 浮层，不再挤压主视区 */
 
 .app--next .rail {
   position: absolute;
-  left: 8px;
-  top: 8px;
-  bottom: 8px;
-  width: 248px;
+  left: var(--sp-3);
+  top: var(--sp-3);
+  bottom: var(--sp-3);
+  width: 272px;
   z-index: 31;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -4191,9 +4207,9 @@ select.in2 {
 
 .app--next .drawer {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  bottom: 8px;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  bottom: var(--sp-3);
   width: var(--panel-w, 420px);
   z-index: 26;
   display: flex;
@@ -4219,7 +4235,7 @@ select.in2 {
 .drawer__wbar {
   position: fixed;
   z-index: 60;
-  padding: 3px 9px;
+  padding: var(--sp-1) var(--sp-2);
   border-radius: 999px;
   background: var(--text-1);
   color: var(--surface);
@@ -4282,12 +4298,12 @@ select.in2 {
 }
 
 .drawer__head {
-  height: 32px;
+  height: 36px;
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 8px 0 10px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
   border-bottom: 1px solid var(--border-soft);
   font-size: 11px;
   color: var(--text-2);
@@ -4356,14 +4372,14 @@ select.in2 {
 .app--next .drawer__body > .files {
   flex: 1;
   min-height: 0;
-  padding: 0 8px 8px;
-  gap: 6px;
+  padding: 0 var(--sp-3) var(--sp-3);
+  gap: var(--sp-2);
   overflow: hidden;
 }
 
 .app--next .drawer .filehead {
   height: 30px;
-  padding: 0 2px;
+  padding: 0 var(--sp-0);
 }
 
 .app--next .drawer .filehead h2 {
@@ -4401,7 +4417,7 @@ select.in2 {
 
 .app--next .drawer .seg--pane button {
   height: 20px;
-  padding: 0 7px;
+  padding: 0 var(--sp-2);
   font-size: 10px;
 }
 
@@ -4433,8 +4449,8 @@ select.in2 {
 .app--next .statusbar {
   height: 22px;
   font-size: 10px;
-  padding: 0 10px;
-  gap: 14px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-4);
 }
 
 .app--next .statusbar .cell b {
@@ -4453,7 +4469,7 @@ select.in2 {
 }
 
 .app--next .drawer .filehead {
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 /* ---------------- 抽屉常驻操作行 ---------------- */
@@ -4463,8 +4479,8 @@ select.in2 {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 2px;
+  gap: var(--sp-0);
+  padding: 0 var(--sp-0);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -4473,8 +4489,8 @@ select.in2 {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 6px;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
@@ -4495,7 +4511,7 @@ select.in2 {
 }
 
 .app--next .drawer--compact .dop {
-  padding: 0 5px;
+  padding: 0 var(--sp-1);
 }
 
 .app--next .dop:hover:not(:disabled) {
@@ -4529,7 +4545,7 @@ select.in2 {
   font-size: 10px;
   color: var(--text-3);
   font-family: var(--mono);
-  padding-right: 3px;
+  padding-right: var(--sp-1);
   white-space: nowrap;
 }
 
@@ -4538,8 +4554,8 @@ select.in2 {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 2px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-0);
   border-bottom: 1px solid var(--border-soft);
   font-size: 11px;
   color: var(--text-2);
@@ -4561,7 +4577,7 @@ select.in2 {
   flex: 1;
   min-width: 0;
   height: 22px;
-  padding: 0 6px;
+  padding: 0 var(--sp-2);
   border: 1px solid var(--accent-line);
   border-radius: 4px;
   background: var(--surface-2);
@@ -4583,7 +4599,7 @@ select.in2 {
   position: fixed;
   z-index: 80;
   min-width: 184px;
-  padding: 4px;
+  padding: var(--sp-1);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-1);
@@ -4599,7 +4615,7 @@ select.in2 {
 }
 
 .ctxmenu__head {
-  padding: 5px 8px 6px;
+  padding: var(--sp-1) var(--sp-2) var(--sp-2);
   overflow: hidden;
   color: var(--text-3);
   font-size: 11px;
@@ -4610,10 +4626,10 @@ select.in2 {
 .ctxmenu button {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   width: 100%;
   height: 30px;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   border: 0;
   border-radius: 6px;
   background: none;
@@ -4646,7 +4662,7 @@ select.in2 {
 
 .ctxmenu__sep {
   height: 1px;
-  margin: 4px 6px;
+  margin: var(--sp-1) var(--sp-2);
   background: var(--border-soft);
 }
 
@@ -4658,8 +4674,8 @@ select.in2 {
 /* 顶栏 36 + 会话条 34 → 合并为一行 46px */
 .app--next .topbar {
   height: 46px;
-  padding: 0 12px;
-  gap: 10px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-3);
 }
 
 .app--next .brandmark {
@@ -4692,9 +4708,9 @@ select.in2 {
   height: auto;
   flex: 1 1 auto;
   min-width: 0;
-  margin-left: 4px;
+  margin-left: var(--sp-1);
   padding: 0;
-  gap: 8px;
+  gap: var(--sp-2);
   border: 0;
   background: transparent;
 }
@@ -4710,14 +4726,14 @@ select.in2 {
 }
 
 .app--next .sb-tabs {
-  gap: 4px;
+  gap: var(--sp-2);
 }
 
 .app--next .sbtab {
   height: 30px;
-  padding: 0 10px;
+  padding: 0 var(--sp-3);
   font-size: 12.5px;
-  gap: 7px;
+  gap: var(--sp-2);
 }
 
 .app--next .sbtab__x {
@@ -4733,9 +4749,9 @@ select.in2 {
 .app--next .sb-btn,
 .app--next .sb-chip {
   height: 30px;
-  padding: 0 9px;
+  padding: 0 var(--sp-2);
   font-size: 12.5px;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .app--next .sb-btn .ic,
@@ -4748,12 +4764,12 @@ select.in2 {
   font-size: 12.5px;
 }
 
-/* 状态栏 22 → 26，字号 10 → 11.5 */
+/* 状态栏 22 → 28，字号 10 → 11.5 */
 .app--next .statusbar {
-  height: 26px;
+  height: 28px;
   font-size: 11.5px;
-  padding: 0 12px;
-  gap: 16px;
+  padding: 0 var(--sp-4);
+  gap: var(--sp-4);
 }
 
 /* 终端条：会话名 12.5 / 元信息 11.5 */
@@ -4765,11 +4781,11 @@ select.in2 {
   font-size: 11.5px;
 }
 
-/* 文件列表：行高 36 → 40，文件名 11 → 13 */
+/* 文件列表：行高 40 → 44，行内左右留白 12，保持长文件名可读 */
 .app--next .frow {
-  height: 40px;
-  padding: 0 10px;
-  gap: 8px;
+  height: 44px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .app--next .frow .nm {
@@ -4814,7 +4830,7 @@ select.in2 {
 
 .app--next .crumb2 .c {
   font-size: 12px;
-  padding: 4px 8px;
+  padding: var(--sp-1) var(--sp-2);
 }
 
 .app--next .crumb2 .cb {
@@ -4833,10 +4849,10 @@ select.in2 {
 }
 
 .app--next .dop {
-  height: 28px;
-  padding: 0 8px;
+  height: 30px;
+  padding: 0 var(--sp-3);
   font-size: 12.5px;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .app--next .dop .ic {
@@ -4874,7 +4890,7 @@ select.in2 {
 .app--next .wincontrols {
   display: flex;
   align-self: stretch;
-  margin: 0 -12px 0 2px;
+  margin: 0 calc(var(--sp-3) * -1) 0 var(--sp-0);
   flex: none;
 }
 
@@ -5011,7 +5027,7 @@ select.in2 {
 
 /* macOS：保留原生红绿灯，Overlay 标题栏下给左上角让位 */
 .app--next.app--mac .topbar {
-  padding-left: 78px;
+  padding-left: 78px /* no-sp-token: macOS 红绿灯让位 */
 }
 
 .app--next.app--mac .wincontrols {
@@ -5019,14 +5035,13 @@ select.in2 {
 }
 
 /* ==========================================================================
-   2026-11-13 标题栏二次压缩：46px → 36px，左右留白收紧
-   36 = 30px 控件命中高 + 上下各 3px；再低会压到 12.5px 文字基线
+   2026-11-14 疏密重排：标题栏 36 → 40，左右留白 8 → 12
    ========================================================================== */
 
 .app--next .topbar {
-  height: 36px;
-  padding: 0 6px;
-  gap: 6px;
+  height: 40px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-3);
 }
 
 .app--next .brandmark {
@@ -5046,8 +5061,8 @@ select.in2 {
 }
 
 .app--next .sessionbar--inline {
-  margin-left: 2px;
-  gap: 6px;
+  margin-left: var(--sp-0);
+  gap: var(--sp-2);
 }
 
 .app--next .sb-toggle {
@@ -5056,8 +5071,10 @@ select.in2 {
 }
 
 .app--next .sbtab {
-  padding: 0 8px;
-  gap: 6px;
+  height: 32px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-2);
+  max-width: 260px;
 }
 
 .app--next .sbtab__x {
@@ -5067,8 +5084,8 @@ select.in2 {
 
 .app--next .sb-btn,
 .app--next .sb-chip {
-  padding: 0 8px;
-  gap: 5px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-2);
 }
 
 /* 图标态：默认 28×28 只显示图标，悬停就地展开文字（不换行、不跳位） */
@@ -5092,17 +5109,17 @@ select.in2 {
 
 .app--next .sb-btn--icon:hover {
   width: auto;
-  padding: 0 9px;
-  gap: 5px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .app--next .sb-btn--icon:hover > span {
   display: inline;
 }
 
-/* 窗口控制：贴右边缘，40×36 命中区 */
+/* 窗口控制：贴右边缘，40×40 命中区 */
 .app--next .wincontrols {
-  margin: 0 -6px 0 0;
+  margin: 0 calc(var(--sp-3) * -1) 0 0;
 }
 
 .app--next .wc {
@@ -5122,7 +5139,7 @@ select.in2 {
 
 .app--next .statusbar .cell {
   height: 100%;
-  padding: 0 10px;
+  padding: 0 var(--sp-3);
   line-height: 1;
   min-width: 0;
   overflow: hidden;

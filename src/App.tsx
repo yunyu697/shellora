@@ -1377,7 +1377,7 @@ export default function App() {
                   会话库 <span className="n">{savedRows.length}</span>
                 </div>
                 {savedRows.length === 0 ? (
-                  <p className="hint" style={{ padding: "0 8px" }}>
+                  <p className="hint" style={{ padding: "0 var(--sp-2)" }}>
                     暂无已保存连接，点右上角 + 新建。
                   </p>
                 ) : (
@@ -1448,7 +1448,7 @@ export default function App() {
 
             {railTab !== "saved" && recentRows.length > 0 ? (
               <>
-                <div className="glabel" style={{ marginTop: 12 }}>
+                <div className="glabel" style={{ marginTop: "var(--sp-3)" }}>
                   最近会话 <span className="n">{recentRows.length}</span>
                 </div>
                 {recentRows.map((row) => {
@@ -1770,7 +1770,7 @@ export default function App() {
                           <p className="hint2">无跳板，直连目标。</p>
                         ) : null}
                         {jumps.map((j, idx) => (
-                          <div className="g2" key={idx} style={{ marginBottom: 10 }}>
+                          <div className="g2" key={idx} style={{ marginBottom: "var(--sp-3)" }}>
                             <label className="field2">
                               <span className="lb2">跳板 {idx + 1} 主机</span>
                               <input
@@ -1896,7 +1896,7 @@ export default function App() {
                         密码仅本次会话使用，不写入数据库；私钥口令同样不落盘。系统钥匙串不可用时会在此提示。
                       </p>
                       {probe && probe.backend === "none" ? (
-                        <p className="warn" style={{ marginTop: 8 }}>
+                        <p className="warn" style={{ marginTop: "var(--sp-2)" }}>
                           未检测到系统钥匙串，按 D1 不会把密码落盘；请安装 libsecret。
                         </p>
                       ) : null}
