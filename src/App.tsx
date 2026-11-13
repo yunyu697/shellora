@@ -35,6 +35,8 @@ import { SftpManager, type SftpSummary } from "./features/sftp/SftpManager";
 import { UpdateButton } from "./features/updater/UpdateButton";
 import { DataResetButton } from "./features/settings/DataResetButton";
 import { applyUiTheme, loadUiTheme, storeUiTheme, type UiTheme } from "./theme";
+import brandDark from "./assets/brand/shellora-dark.svg";
+import brandLight from "./assets/brand/shellora-light.svg";
 
 const MAX_TABS = 30;
 const RAIL_KEY = "shellora.railCollapsed";
@@ -771,7 +773,7 @@ export default function App() {
     <div className={resizing ? "app app--next app--resizing" : "app app--next"}>
       <header className="topbar">
         <div className="brandmark">
-          <Icon name="terminal" />
+          <img src={theme === "dark" ? brandDark : brandLight} alt="" draggable={false} />
         </div>
         <h1 className="brand">Shellora</h1>
         <nav className="navpills" aria-label="主导航">

@@ -3856,14 +3856,19 @@ select.in2 {
 }
 
 .app--next .brandmark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: none;
+  box-shadow: none;
 }
 
-.app--next .brandmark .ic {
-  width: 13px;
-  height: 13px;
+.app--next .brandmark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  user-select: none;
 }
 
 .app--next .brand {
