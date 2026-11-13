@@ -30,6 +30,8 @@ interface Props {
   onDropTarget: (side: PaneSide, dir: string) => void;
   /** 选中项一键上传/下载到对侧当前目录。 */
   onTransferSelected?: (side: PaneSide, items: DirEntry[]) => void;
+  /** 行右键：在光标处打开操作菜单。 */
+  onRowContextMenu?: (side: PaneSide, entry: DirEntry, x: number, y: number) => void;
 }
 
 interface Crumb {
@@ -136,6 +138,7 @@ export function FilePane({
   onDragStart,
   onDropTarget,
   onTransferSelected,
+  onRowContextMenu,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<string | null>(null);
@@ -457,6 +460,11 @@ export function FilePane({
                     title={entry.path}
                     onMouseDown={(ev) => ev.stopPropagation()}
                     onClick={(ev) => clickRow(ev, entry)}
+                    onContextMenu={(ev) => {
+                      ev.preventDefault();
+                      if (!isSel) onSelect(new Set([entry.path]));
+                      onRowContextMenu?.(side, entry, ev.clientX, ev.clientY);
+                    }}
                     onDoubleClick={() => entry.isDir && onNavigate(entry.path)}
                     draggable={!entry.isSymlink}
                     onDragStart={(ev) => startDrag(ev, entry)}

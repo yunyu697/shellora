@@ -239,8 +239,59 @@ const internals: Internals = {
         }, 0);
         return null;
       }
+      // 预览没有真实磁盘：本机新建/重命名/删除直接改夹具并记录调用
+      case "local_mkdir": {
+        const full = String(args.path ?? "");
+        const name = full.split(/[\\/]/).pop() ?? full;
+        localEntries.push({
+          name,
+          path: full,
+          isDir: true,
+          isSymlink: false,
+          size: 0,
+          mtime: Date.now(),
+        });
+        const log = ((window as unknown as Record<string, unknown>).__PREVIEW_OPS__ ??= []) as Array<
+          Record<string, unknown>
+        >;
+        log.push({ cmd, ...args });
+        return null;
+      }
+      case "local_rename": {
+        const from = String(args.from ?? "");
+        const to = String(args.to ?? "");
+        const entry = localEntries.find((e) => e.path === from);
+        if (entry) {
+          entry.path = to;
+          entry.name = to.split(/[\\/]/).pop() ?? entry.name;
+        }
+        const log = ((window as unknown as Record<string, unknown>).__PREVIEW_OPS__ ??= []) as Array<
+          Record<string, unknown>
+        >;
+        log.push({ cmd, ...args });
+        return null;
+      }
+      case "local_remove": {
+        const idx = localEntries.findIndex((e) => e.path === String(args.path ?? ""));
+        if (idx >= 0) localEntries.splice(idx, 1);
+        const log = ((window as unknown as Record<string, unknown>).__PREVIEW_OPS__ ??= []) as Array<
+          Record<string, unknown>
+        >;
+        log.push({ cmd, ...args });
+        return null;
+      }
       case "terminal_open":
         return { tabId: "preview-tab" };
+      // 预览环境没有真实 SFTP：记录调用，供界面与自查断言使用
+      case "sftp_mkdir":
+      case "sftp_rename":
+      case "sftp_remove": {
+        const log = ((window as unknown as Record<string, unknown>).__PREVIEW_OPS__ ??= []) as Array<
+          Record<string, unknown>
+        >;
+        log.push({ cmd, ...args });
+        return null;
+      }
       default:
         return null;
     }

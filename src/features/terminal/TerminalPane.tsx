@@ -129,6 +129,19 @@ export function TerminalPane({
   const apiRef = useRef(api);
   apiRef.current = api;
 
+  // 从文件面板拖文件到终端：把路径直接写进命令行（跨组件用事件解耦）
+  useEffect(() => {
+    if (!active) return;
+    const onInsert = (ev: Event) => {
+      const text = (ev as CustomEvent<{ text?: string }>).detail?.text;
+      if (!text) return;
+      apiRef.current.paste(text);
+      apiRef.current.focus();
+    };
+    window.addEventListener("shellora:insert-path", onInsert);
+    return () => window.removeEventListener("shellora:insert-path", onInsert);
+  }, [active]);
+
   // 切回标签后重新测量并聚焦（隐藏期间尺寸不变，ResizeObserver 不会触发）。
   useEffect(() => {
     if (!active) return;

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { createPortal } from "react-dom";
+
 import { Icon } from "../../components/Icons";
 import {
   cancelRemoteDir,
@@ -8,6 +10,12 @@ import {
   listLocalDir,
   listRemoteDir,
   localHome,
+  localMkdir,
+  localRemove,
+  localRename,
+  remoteMkdir,
+  remoteRemove,
+  remoteRename,
   transferCancel,
   transferCancelGroup,
   transferList,
@@ -68,6 +76,8 @@ interface Props {
   initialRemotePath?: string | null;
   onSummary?: (summary: SftpSummary) => void;
   onOpenTerminal?: () => void;
+  /** 抽屉是否可见：可见时接管 F2 / Delete / Alt+N / Alt+U */
+  active?: boolean;
 }
 
 function emptyPane(path: string): PaneState {
@@ -94,6 +104,34 @@ function joinLocal(dir: string, name: string): string {
   const sep = dir.includes("\\") ? "\\" : "/";
   if (dir.endsWith("\\") || dir.endsWith("/")) return `${dir}${name}`;
   return `${dir}${sep}${name}`;
+}
+
+/** 每个会话各自记住本机 / 远端浏览到的目录，切换标签互不干扰。 */
+type StoredPaths = { local?: string; remote?: string };
+
+function pathsKey(tabId: string | null): string {
+  return `shellora.sftpPath.${tabId || "default"}`;
+}
+
+function readStoredPaths(tabId: string | null): StoredPaths {
+  try {
+    const raw = window.localStorage.getItem(pathsKey(tabId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as StoredPaths;
+    return typeof parsed === "object" && parsed ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredPath(tabId: string | null, side: PaneSide, path: string): void {
+  if (!path) return;
+  try {
+    const next = { ...readStoredPaths(tabId), [side]: path };
+    window.localStorage.setItem(pathsKey(tabId), JSON.stringify(next));
+  } catch {
+    /* 隐私模式忽略 */
+  }
 }
 
 function formatEta(secs: number | null): string {
@@ -126,6 +164,7 @@ export function SftpManager({
   initialRemotePath,
   onSummary,
   onOpenTerminal,
+  active = false,
 }: Props) {
   const [local, setLocal] = useState<PaneState>(() => emptyPane(""));
   const [remote, setRemote] = useState<PaneState>(() => emptyPane(initialRemotePath || "/"));
@@ -136,6 +175,21 @@ export function SftpManager({
   const [groups, setGroups] = useState<Record<string, TransferGroup>>({});
   const [groupOrder, setGroupOrder] = useState<string[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  /** 抽屉里的传输队列折叠状态，跨会话记忆。 */
+  const [queueOpen, setQueueOpen] = useState(() => {
+    try {
+      return localStorage.getItem("shellora.queueOpen") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("shellora.queueOpen", queueOpen ? "1" : "0");
+    } catch {
+      // 隐私模式等写入失败时保持内存态即可
+    }
+  }, [queueOpen]);
   const [treePrompt, setTreePrompt] = useState<TreePrompt | null>(null);
   const [treeOptions, setTreeOptions] = useState<TreeOptions>(DEFAULT_TREE_OPTIONS);
   const [notice, setNotice] = useState<string | null>(null);
@@ -143,6 +197,8 @@ export function SftpManager({
   const [choice, setChoice] = useState<"overwrite" | "skip" | "rename">("overwrite");
   const [dismissedConflicts, setDismissedConflicts] = useState<Set<string>>(new Set());
   const [swapped, setSwapped] = useState(false);
+  /** 抽屉里一次只看一侧：远端（默认）或本机，避免 420px 内并排挤成两半 */
+  const [paneView, setPaneView] = useState<PaneSide>("remote");
 
   const listingRef = useRef<string>("");
   const remoteNavTabRef = useRef<string | null>(null);
@@ -167,6 +223,7 @@ export function SftpManager({
           loading: false,
           note: null,
         });
+        writeStoredPath(tabId, "local", nextPath);
       })
       .catch((err) => {
         if (localSeqRef.current !== seq) return;
@@ -174,7 +231,7 @@ export function SftpManager({
           prev.path === nextPath ? { ...prev, loading: false, note: errorText(err) } : prev,
         );
       });
-  }, []);
+  }, [tabId]);
 
   const loadMoreLocal = useCallback(() => {
     if (localMoreRef.current || !local.hasMore || local.loading) return;
@@ -229,6 +286,7 @@ export function SftpManager({
               ? prev
               : { ...prev, loading: false, total: msg.total, note: null },
           );
+          writeStoredPath(tabId, "remote", nextPath);
         } else {
           setRemote((prev) =>
             prev.path !== nextPath
@@ -248,10 +306,11 @@ export function SftpManager({
   );
 
   useEffect(() => {
+    const stored = readStoredPaths(tabId).local;
     void localHome()
-      .then(navigateLocal)
+      .then((home) => navigateLocal(stored || home))
       .catch((err) => setLocal((prev) => ({ ...prev, loading: false, note: errorText(err) })));
-  }, [navigateLocal]);
+  }, [navigateLocal, tabId]);
 
   // 仅在切换标签时对齐远端目录；终端后续 cd（OSC 7）不再打断用户在 SFTP 里的浏览。
   useEffect(() => {
@@ -262,7 +321,8 @@ export function SftpManager({
     }
     if (remoteNavTabRef.current === tabId) return;
     remoteNavTabRef.current = tabId;
-    navigateRemote(initialRemotePath || "/");
+    const stored = readStoredPaths(tabId).remote;
+    navigateRemote(stored || initialRemotePath || "/");
   }, [navigateRemote, initialRemotePath, tabId]);
 
   useEffect(
@@ -377,6 +437,191 @@ export function SftpManager({
     const target = side === "local" ? remote.path : local.path;
     if (target) transferItems(side, items, target);
   };
+
+  // ---- 抽屉常驻操作行：上传 / 新建目录 / 下载 / 重命名 / 删除 ----
+  const [editing, setEditing] = useState<
+    { mode: "create" } | { mode: "rename"; entry: DirEntry } | null
+  >(null);
+  const [draft, setDraft] = useState("");
+  const [opBusy, setOpBusy] = useState(false);
+
+  const activePane = paneView === "remote" ? remote : local;
+  const activeSelected = paneView === "remote" ? selectedRemote : selectedLocal;
+  const selItems = activePane.entries.filter((e) => activeSelected.has(e.path));
+  const singleSel = selItems.length === 1 ? selItems[0] : null;
+  /** 新建/重命名对两栏都开放：远端要会话就绪，本机只要当前目录有效。 */
+  const canCreate = !opBusy && !editing && (paneView === "remote" ? !!tabId : !!local.path);
+  const canRename = canCreate && !!singleSel;
+  /** 删除对两栏都开放：远端要会话就绪，本机只要当前目录有效。 */
+  const canDelete =
+    selItems.length > 0 && !opBusy && (paneView === "remote" ? !!tabId : !!local.path);
+
+  const refreshActive = () => {
+    if (paneView === "remote") navigateRemote(remote.path || "/");
+    else navigateLocal(local.path);
+  };
+
+  const runOp = async (label: string, fn: () => Promise<void>) => {
+    setOpBusy(true);
+    try {
+      await fn();
+      setNotice(`${label}成功`);
+      refreshActive();
+    } catch (err) {
+      setNotice(`${label}失败：${errorText(err)}`);
+    } finally {
+      setOpBusy(false);
+    }
+  };
+
+  const startCreate = () => {
+    setEditing({ mode: "create" });
+    setDraft("新建目录");
+  };
+
+  const startRename = () => {
+    if (!singleSel) return;
+    setEditing({ mode: "rename", entry: singleSel });
+    setDraft(singleSel.name);
+  };
+
+  const submitEdit = () => {
+    const name = draft.trim();
+    const current = editing;
+    setEditing(null);
+    setDraft("");
+    if (!current || !name) return;
+    if (paneView === "remote") {
+      if (!tabId) return;
+      const to = joinRemote(remote.path || "/", name);
+      if (current.mode === "create") {
+        void runOp("新建目录", () => remoteMkdir(tabId, to));
+      } else if (to !== current.entry.path) {
+        void runOp("重命名", () => remoteRename(tabId, current.entry.path, to));
+      }
+      return;
+    }
+    if (!local.path) return;
+    const to = joinLocal(local.path, name);
+    if (current.mode === "create") {
+      void runOp("新建目录", () => localMkdir(to));
+    } else if (to !== current.entry.path) {
+      void runOp("重命名", () => localRename(current.entry.path, to));
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft("");
+  };
+
+  const deleteSelected = () => {
+    if (!canDelete) return;
+    const remoteTab = paneView === "remote" ? tabId : null;
+    if (paneView === "remote" && !remoteTab) return;
+    const side = paneView === "remote" ? "远端" : "本机";
+    const names = selItems.map((e) => e.name).join("、");
+    const hint = selItems.some((e) => e.isDir) ? "\n\n目录必须为空才能删除。" : "";
+    const extra =
+      paneView === "local" ? "\n\n本机文件会被直接删除，不进回收站。" : hint;
+    if (!window.confirm(`删除${side} ${selItems.length} 项？\n${names}${extra}`)) return;
+    void runOp("删除", async () => {
+      for (const item of selItems) {
+        if (remoteTab) await remoteRemove(remoteTab, item.path, item.isDir);
+        else if (paneView === "local") await localRemove(item.path, item.isDir);
+      }
+      setSelectedRemote(new Set());
+      setSelectedLocal(new Set());
+    });
+  };
+
+  const uploadSelected = () => {
+    const items = local.entries.filter((e) => selectedLocal.has(e.path));
+    if (!items.length || !remote.path) return;
+    transferItems("local", items, remote.path);
+  };
+
+  const downloadSelected = () => {
+    const items = remote.entries.filter((e) => selectedRemote.has(e.path));
+    if (!items.length || !local.path) return;
+    transferItems("remote", items, local.path);
+  };
+
+  // ---- 行右键菜单：定位在光标处，点外部 / Esc / 滚动即关闭 ----
+  const [rowMenu, setRowMenu] = useState<
+    { x: number; y: number; side: PaneSide; entry: DirEntry } | null
+  >(null);
+
+  useEffect(() => {
+    if (!rowMenu) return;
+    const close = () => setRowMenu(null);
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") close();
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [rowMenu]);
+
+  const openRowMenu = (side: PaneSide, entry: DirEntry, x: number, y: number) => {
+    setRowMenu({ x, y, side, entry });
+  };
+
+  const menuDelete = (side: PaneSide, entry: DirEntry) => {
+    const sideName = side === "remote" ? "远端" : "本机";
+    const extra = side === "local" ? "\n\n本机文件会被直接删除，不进回收站。" : "";
+    if (!window.confirm(`删除${sideName}「${entry.name}」？${extra}`)) return;
+    void runOp("删除", async () => {
+      if (side === "remote") {
+        if (!tabId) throw new Error("会话未就绪");
+        await remoteRemove(tabId, entry.path, entry.isDir);
+        setSelectedRemote(new Set());
+      } else {
+        await localRemove(entry.path, entry.isDir);
+        setSelectedLocal(new Set());
+      }
+    });
+  };
+
+  const menuCopyPath = (entry: DirEntry) => {
+    void navigator.clipboard.writeText(entry.path).then(
+      () => setNotice("已复制路径"),
+      () => setNotice("复制失败：剪贴板不可用"),
+    );
+  };
+
+  // F2 重命名 / Delete 删除 / Alt+N 新建目录 / Alt+U 上传：只在抽屉可见时接管
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (ev: KeyboardEvent) => {
+      const el = ev.target as HTMLElement | null;
+      const typing =
+        el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || !!el?.isContentEditable;
+      if (typing) return;
+      if (ev.key === "F2" && canRename) {
+        ev.preventDefault();
+        startRename();
+      } else if (ev.key === "Delete" && canDelete) {
+        ev.preventDefault();
+        deleteSelected();
+      } else if (ev.altKey && ev.key.toLowerCase() === "n" && canCreate) {
+        ev.preventDefault();
+        startCreate();
+      } else if (ev.altKey && ev.key.toLowerCase() === "u") {
+        ev.preventDefault();
+        uploadSelected();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const confirmTree = async () => {
     const prompt = treePrompt;
@@ -503,7 +748,6 @@ export function SftpManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, order, onSummary]);
 
-  const panes: PaneSide[] = swapped ? ["remote", "local"] : ["local", "remote"];
   const localPane = (
     <FilePane
       key="local"
@@ -524,6 +768,7 @@ export function SftpManager({
       onDragStart={onDragStart}
       onDropTarget={onDropTarget}
       onTransferSelected={onTransferSelected}
+      onRowContextMenu={openRowMenu}
     />
   );
   const remotePane = (
@@ -548,6 +793,7 @@ export function SftpManager({
       onDragStart={onDragStart}
       onDropTarget={onDropTarget}
       onTransferSelected={onTransferSelected}
+      onRowContextMenu={openRowMenu}
     />
   );
 
@@ -559,6 +805,22 @@ export function SftpManager({
           <span className="dot" />
           {label}
         </span>
+        <div className="seg seg--pane" role="tablist" aria-label="窗格">
+          <button
+            type="button"
+            className={paneView === "remote" ? "on" : ""}
+            onClick={() => setPaneView("remote")}
+          >
+            远端
+          </button>
+          <button
+            type="button"
+            className={paneView === "local" ? "on" : ""}
+            onClick={() => setPaneView("local")}
+          >
+            本机
+          </button>
+        </div>
         <span className="grow" />
         {notice ? <span className="sftp-notice">{notice}</span> : null}
         <button type="button" className="btn btn--ghost" onClick={refreshQueue}>
@@ -571,8 +833,88 @@ export function SftpManager({
         ) : null}
       </header>
 
-      <div className="fsp">
-        {panes[0] === "local" ? localPane : remotePane}
+      <div className="dops" role="toolbar" aria-label="文件操作">
+        <button
+          type="button"
+          className="dop dop--primary"
+          title="上传选中的本机文件 (Alt+U)"
+          disabled={selectedLocal.size === 0 || !remote.path || opBusy}
+          onClick={uploadSelected}
+        >
+          <Icon name="upload" />上传
+        </button>
+        <button
+          type="button"
+          className="dop"
+          title="新建目录 (Alt+N)"
+          disabled={!canCreate}
+          onClick={startCreate}
+        >
+          <Icon name="plus" />新建目录
+        </button>
+        <button
+          type="button"
+          className="dop"
+          title="下载选中的远端文件"
+          disabled={selectedRemote.size === 0 || !tabId || opBusy}
+          onClick={downloadSelected}
+        >
+          <Icon name="download" />下载
+        </button>
+        <button
+          type="button"
+          className="dop"
+          title="重命名选中的项 (F2)"
+          disabled={!canRename}
+          onClick={startRename}
+        >
+          <Icon name="pencil" />重命名
+        </button>
+        <button
+          type="button"
+          className="dop dop--danger"
+          title="删除选中的项 (Delete)"
+          disabled={!canDelete}
+          onClick={deleteSelected}
+        >
+          <Icon name="trash" />删除
+        </button>
+        <span className="grow" />
+        <span className="dops__sel">
+          {selItems.length ? `已选 ${selItems.length}` : paneView === "remote" ? "未选择" : "本机窗格"}
+        </span>
+      </div>
+
+      {editing ? (
+        <div className="dedit">
+          <Icon name={editing.mode === "create" ? "folder" : "pencil"} />
+          <span className="dedit__label">{editing.mode === "create" ? "新目录" : "重命名为"}</span>
+          <input
+            autoFocus
+            value={draft}
+            onChange={(ev) => setDraft(ev.target.value)}
+            onKeyDown={(ev) => {
+              if (ev.key === "Enter") {
+                ev.preventDefault();
+                submitEdit();
+              } else if (ev.key === "Escape") {
+                ev.preventDefault();
+                cancelEdit();
+              }
+            }}
+            aria-label={editing.mode === "create" ? "新目录名称" : "新名称"}
+          />
+          <button type="button" className="dop dop--primary" onClick={submitEdit}>
+            确定
+          </button>
+          <button type="button" className="dop" onClick={cancelEdit}>
+            取消
+          </button>
+        </div>
+      ) : null}
+
+      <div className="fsp fsp--single">
+        <div className={paneView === "local" ? "pane-slot on" : "pane-slot"}>{localPane}</div>
         <div className="axis" aria-label="传输方向">
           <button
             type="button"
@@ -616,10 +958,12 @@ export function SftpManager({
             <Icon name={swapped ? "arrowRight" : "arrowLeft"} />
           </button>
         </div>
-        {panes[1] === "local" ? localPane : remotePane}
+        <div className={paneView === "remote" ? "pane-slot on" : "pane-slot"}>{remotePane}</div>
       </div>
-
-      <section className="queue2" aria-label="传输队列">
+      <section
+        className={queueOpen ? "queue2" : "queue2 queue2--folded"}
+        aria-label="传输队列"
+      >
         <header className="qhead2">
           <span className="ttl">Transfers</span>
           <span className="cnt">
@@ -632,8 +976,14 @@ export function SftpManager({
           <button type="button" className="qb" title="刷新" onClick={refreshQueue}>
             <Icon name="refresh" />
           </button>
-          <button type="button" className="qb" title="更多">
-            <Icon name="more" />
+          <button
+            type="button"
+            className="qb"
+            title={queueOpen ? "折叠传输队列" : "展开传输队列"}
+            aria-expanded={queueOpen}
+            onClick={() => setQueueOpen((open) => !open)}
+          >
+            <Icon name={queueOpen ? "chevronDown" : "chevronUp"} />
           </button>
         </header>
 
@@ -1125,6 +1475,104 @@ export function SftpManager({
           </div>
         </div>
       ) : null}
+      {rowMenu
+        ? createPortal(
+            <div
+              className="ctxmenu"
+              role="menu"
+              style={{
+                left: Math.max(8, Math.min(rowMenu.x, window.innerWidth - 200)),
+                top: Math.max(8, Math.min(rowMenu.y, window.innerHeight - 232)),
+              }}
+              onMouseDown={(ev) => ev.stopPropagation()}
+              onContextMenu={(ev) => ev.preventDefault()}
+            >
+              <div className="ctxmenu__head" title={rowMenu.entry.name}>
+                {rowMenu.entry.name}
+              </div>
+              {rowMenu.side === "remote" ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!local.path}
+                  onClick={() => {
+                    const entry = rowMenu.entry;
+                    setRowMenu(null);
+                    transferItems("remote", [entry], local.path);
+                  }}
+                >
+                  <Icon name="download" />
+                  下载到本机
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!remote.path}
+                  onClick={() => {
+                    const entry = rowMenu.entry;
+                    setRowMenu(null);
+                    transferItems("local", [entry], remote.path);
+                  }}
+                >
+                  <Icon name="upload" />
+                  上传到远端
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const entry = rowMenu.entry;
+                  setRowMenu(null);
+                  setEditing({ mode: "rename", entry });
+                  setDraft(entry.name);
+                }}
+              >
+                <Icon name="pencil" />
+                重命名
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setRowMenu(null);
+                  startCreate();
+                }}
+              >
+                <Icon name="plus" />
+                新建目录
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const entry = rowMenu.entry;
+                  setRowMenu(null);
+                  menuCopyPath(entry);
+                }}
+              >
+                <Icon name="copy" />
+                复制路径
+              </button>
+              <div className="ctxmenu__sep" />
+              <button
+                type="button"
+                role="menuitem"
+                className="danger"
+                onClick={() => {
+                  const { side, entry } = rowMenu;
+                  setRowMenu(null);
+                  menuDelete(side, entry);
+                }}
+              >
+                <Icon name="trash" />
+                删除
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

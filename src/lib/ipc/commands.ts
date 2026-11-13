@@ -122,12 +122,42 @@ export function cancelRemoteDir(listingId: string): Promise<void> {
   return invoke("sftp_cancel_list", { listingId });
 }
 
+/** 远端新建单层目录。 */
+export function remoteMkdir(tabId: string, path: string): Promise<void> {
+  return invoke("sftp_mkdir", { tabId, path });
+}
+
+/** 远端重命名 / 移动。 */
+export function remoteRename(tabId: string, from: string, to: string): Promise<void> {
+  return invoke("sftp_rename", { tabId, from, to });
+}
+
+/** 远端删除：目录需为空。 */
+export function remoteRemove(tabId: string, path: string, isDir: boolean): Promise<void> {
+  return invoke("sftp_remove", { tabId, path, isDir });
+}
+
 export function localHome(): Promise<string> {
   return invoke<string>("local_home");
 }
 
 export function listLocalDir(path: string, offset: number, limit = 500): Promise<LocalDirPage> {
   return invoke<LocalDirPage>("local_list_dir", { path, offset, limit });
+}
+
+/** 删除本机文件或空目录（符号链接只删链接本身）。 */
+export function localRemove(path: string, isDir: boolean): Promise<void> {
+  return invoke("local_remove", { path, isDir });
+}
+
+/** 新建单层本机目录。 */
+export function localMkdir(path: string): Promise<void> {
+  return invoke("local_mkdir", { path });
+}
+
+/** 本机重命名 / 移动；目标存在时后端会拒绝覆盖。 */
+export function localRename(from: string, to: string): Promise<void> {
+  return invoke("local_rename", { from, to });
 }
 
 /** 批量入队；channel 需由调用方持有，防止被 GC。 */

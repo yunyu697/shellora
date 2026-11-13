@@ -737,6 +737,28 @@ pub async fn remote_exists(ssh: SharedSsh, path: String) -> Result<bool, ErrorDt
     session.try_exists(path).await.map_err(map_sftp_err)
 }
 
+/// 远端新建目录（单层，父目录需已存在）。
+pub async fn create_dir(ssh: SharedSsh, path: String) -> Result<(), ErrorDto> {
+    let session = open_session(&ssh).await?;
+    session.create_dir(path).await.map_err(map_sftp_err)
+}
+
+/// 远端重命名 / 移动。
+pub async fn rename_path(ssh: SharedSsh, from: String, to: String) -> Result<(), ErrorDto> {
+    let session = open_session(&ssh).await?;
+    session.rename(from, to).await.map_err(map_sftp_err)
+}
+
+/// 远端删除：目录走 rmdir（要求为空），文件走 unlink。
+pub async fn remove_path(ssh: SharedSsh, path: String, is_dir: bool) -> Result<(), ErrorDto> {
+    let session = open_session(&ssh).await?;
+    if is_dir {
+        session.remove_dir(path).await.map_err(map_sftp_err)
+    } else {
+        session.remove_file(path).await.map_err(map_sftp_err)
+    }
+}
+
 fn map_sftp_err(err: SftpError) -> ErrorDto {
     if let SftpError::Status(status) = &err {
         return match status.status_code {

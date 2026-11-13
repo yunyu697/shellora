@@ -2,6 +2,7 @@
 //!
 //! 每页按文件名排序后切片，保证分页顺序稳定；只对当前页条目取元数据。
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::{ErrorCode, ErrorDto};
@@ -159,6 +160,40 @@ pub async fn create_dirs(paths: &[PathBuf]) -> Result<usize, ErrorDto> {
         created += 1;
     }
     Ok(created)
+}
+
+/// 新建单层本地目录；父目录不存在时返回 `FS_IO`（与远端 `mkdir` 一致）。
+pub async fn create_dir(path: String) -> Result<(), ErrorDto> {
+    let target = PathBuf::from(&path);
+    if tokio::fs::try_exists(&target).await.unwrap_or(false) {
+        return Err(ErrorDto::new(ErrorCode::FsIo, format!("已存在：{path}")));
+    }
+    tokio::fs::create_dir(&target).await.map_err(map_io)
+}
+
+/// 本地重命名 / 移动；目标已存在时拒绝，避免静默覆盖。
+pub async fn rename_path(from: String, to: String) -> Result<(), ErrorDto> {
+    let target = PathBuf::from(&to);
+    if tokio::fs::try_exists(&target).await.unwrap_or(false) {
+        return Err(ErrorDto::new(ErrorCode::FsIo, format!("目标已存在：{to}")));
+    }
+    tokio::fs::rename(PathBuf::from(&from), &target)
+        .await
+        .map_err(map_io)
+}
+
+/// 删除本地文件或空目录。
+///
+/// 符号链接一律按文件处理（只删链接本身，不跟进目标）；
+/// 目录使用 `remove_dir`，非空目录会返回 `FS_IO` 错误，与远端语义一致。
+pub async fn remove_path(path: String, is_dir: bool) -> Result<(), ErrorDto> {
+    let target = PathBuf::from(&path);
+    let meta = tokio::fs::symlink_metadata(&target).await.map_err(map_io)?;
+    if is_dir && meta.is_dir() && !meta.file_type().is_symlink() {
+        tokio::fs::remove_dir(&target).await.map_err(map_io)
+    } else {
+        tokio::fs::remove_file(&target).await.map_err(map_io)
+    }
 }
 
 async fn entry_dto(path: &Path) -> DirEntryDto {

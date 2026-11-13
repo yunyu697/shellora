@@ -265,6 +265,41 @@ pub async fn sftp_upload(
     .await
 }
 
+/// SFTP 新建目录：远端单层 mkdir。
+#[tauri::command]
+pub async fn sftp_mkdir(
+    state: State<'_, AppState>,
+    tab_id: String,
+    path: String,
+) -> Result<(), ErrorDto> {
+    let ssh = session_ssh(&state, &tab_id)?;
+    crate::sftp::create_dir(ssh, path).await
+}
+
+/// SFTP 重命名 / 移动。
+#[tauri::command]
+pub async fn sftp_rename(
+    state: State<'_, AppState>,
+    tab_id: String,
+    from: String,
+    to: String,
+) -> Result<(), ErrorDto> {
+    let ssh = session_ssh(&state, &tab_id)?;
+    crate::sftp::rename_path(ssh, from, to).await
+}
+
+/// SFTP 删除：目录（需为空）或文件。
+#[tauri::command]
+pub async fn sftp_remove(
+    state: State<'_, AppState>,
+    tab_id: String,
+    path: String,
+    is_dir: bool,
+) -> Result<(), ErrorDto> {
+    let ssh = session_ssh(&state, &tab_id)?;
+    crate::sftp::remove_path(ssh, path, is_dir).await
+}
+
 // ---------------------------------------------------------------------------
 // M3：目录列表
 // ---------------------------------------------------------------------------
@@ -356,6 +391,21 @@ pub async fn local_list_dir(
         limit.unwrap_or(crate::local::LOCAL_PAGE_SIZE),
     )
     .await
+}
+
+#[tauri::command]
+pub async fn local_mkdir(path: String) -> Result<(), ErrorDto> {
+    crate::local::create_dir(path).await
+}
+
+#[tauri::command]
+pub async fn local_rename(from: String, to: String) -> Result<(), ErrorDto> {
+    crate::local::rename_path(from, to).await
+}
+
+#[tauri::command]
+pub async fn local_remove(path: String, is_dir: bool) -> Result<(), ErrorDto> {
+    crate::local::remove_path(path, is_dir).await
 }
 
 // ---------------------------------------------------------------------------
