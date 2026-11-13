@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type {
+  DragEvent as ReactDragEvent,
+  FormEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { getVersion } from "@tauri-apps/api/app";
 
 import {
@@ -33,6 +37,7 @@ import { applyUiTheme, loadUiTheme, storeUiTheme, type UiTheme } from "./theme";
 
 const MAX_TABS = 30;
 const RAIL_KEY = "shellora.railCollapsed";
+const PANEL_WIDTH_KEY = "shellora.panelWidth";
 
 /** 会话栏折叠状态：默认展开，仅本地偏好，不影响任何业务数据。 */
 function loadRailCollapsed(): boolean {
@@ -158,6 +163,162 @@ export default function App() {
   const railScrollRef = useRef<HTMLDivElement | null>(null);
   const activeRailRowRef = useRef<HTMLDivElement | null>(null);
 
+  // ---- 文件抽屉：终端始终是全宽主视区，文件按需呼出 ----
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelLayout, setPanelLayout] = useState<"push" | "overlay">("push");
+  const [panelWidth, setPanelWidth] = useState(0);
+  const [resizing, setResizing] = useState(false);
+  const dragRef = useRef<{ x: number; w: number } | null>(null);
+  /** 记录「刚读回的宽度」，避免把上一个会话的宽度写进新会话的键里 */
+  const loadedWidthRef = useRef<{ key: string; w: number } | null>(null);
+  /** 读回的值还没落到 state 上时置 true，期间的宽度变化一律不写回 */
+  const awaitingWidthRef = useRef(false);
+
+  /** 最小 340（五个操作按钮不被裁切），最大 720 / 窗口 56%，挤压态终端至少留 560 */
+  const clampPanelWidth = useCallback((w: number) => {
+    const vw = window.innerWidth || 1440;
+    const min = Math.min(340, Math.max(280, Math.round(vw * 0.42)));
+    const max = Math.max(min, Math.min(720, Math.round(vw * 0.56), vw - 560));
+    const n = Number.isFinite(w) && w > 0 ? Math.round(w) : 420;
+    return Math.min(Math.max(n, min), max);
+  }, []);
+
+  const defaultPanelWidth = useCallback(() => {
+    const vw = window.innerWidth || 1440;
+    return vw >= 1700 ? 460 : vw < 1360 ? 380 : 420;
+  }, []);
+
+  // 启动 / 切换会话时读回该会话记住的宽度；窗口缩放时重新夹住（不覆盖已记住的值）
+  useEffect(() => {
+    let stored = 0;
+    try {
+      stored =
+        Number(window.localStorage.getItem(`${PANEL_WIDTH_KEY}:${activeKey || "default"}`)) ||
+        Number(window.localStorage.getItem(PANEL_WIDTH_KEY)) ||
+        0;
+    } catch {
+      stored = 0;
+    }
+    const next = clampPanelWidth(stored || defaultPanelWidth());
+    loadedWidthRef.current = { key: activeKey || "default", w: next };
+    awaitingWidthRef.current = true;
+    setPanelWidth(next);
+  }, [activeKey, clampPanelWidth, defaultPanelWidth]);
+
+  useEffect(() => {
+    const onResize = () => setPanelWidth((w) => clampPanelWidth(w));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [clampPanelWidth]);
+
+  // 写入 CSS 变量，宽度变化不影响 DOM 结构
+  useEffect(() => {
+    document.documentElement.style.setProperty("--panel-w", `${Math.round(panelWidth)}px`);
+  }, [panelWidth]);
+
+  // 宽度按会话分别记忆，切换会话互不干扰
+  useEffect(() => {
+    if (!panelWidth) return;
+    const loaded = loadedWidthRef.current;
+    if (awaitingWidthRef.current) {
+      // 读回的值还没生效：这一帧（含切会话过渡帧）不写回
+      if (loaded && panelWidth === loaded.w) awaitingWidthRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        `${PANEL_WIDTH_KEY}:${activeKey || "default"}`,
+        String(Math.round(panelWidth)),
+      );
+    } catch {
+      /* 隐私模式忽略 */
+    }
+  }, [panelWidth, activeKey]);
+
+  const nudgePanelWidth = useCallback(
+    (dir: number, step = 40) => setPanelWidth((w) => clampPanelWidth(w + dir * step)),
+    [clampPanelWidth],
+  );
+
+  // Alt+P 切换挤压/覆盖；Alt+[ ] 调宽；Ctrl+Shift+E 呼出/收起面板
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const target = ev.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const typing =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable;
+      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.key.toLowerCase() === "e") {
+        ev.preventDefault();
+        setPanelOpen((prev) => !prev);
+        return;
+      }
+      if (ev.altKey && !typing && ev.key.toLowerCase() === "p" && panelOpen) {
+        ev.preventDefault();
+        setPanelLayout((prev) => (prev === "push" ? "overlay" : "push"));
+        return;
+      }
+      if (ev.altKey && !typing && panelOpen && (ev.key === "[" || ev.key === "]")) {
+        ev.preventDefault();
+        nudgePanelWidth(ev.key === "[" ? 1 : -1, ev.shiftKey ? 120 : 40);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [panelOpen, nudgePanelWidth]);
+
+  const startResize = (ev: ReactPointerEvent<HTMLDivElement>) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    try {
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+    } catch {
+      /* 合成指针（测试/部分触控）没有可捕获的 pointerId，退回普通事件流 */
+    }
+    dragRef.current = { x: ev.clientX, w: panelWidth };
+    setResizing(true);
+  };
+  const moveResize = (ev: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setPanelWidth(clampPanelWidth(d.w + d.x - ev.clientX));
+  };
+  const endResize = (ev: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setResizing(false);
+    try {
+      ev.currentTarget.releasePointerCapture(ev.pointerId);
+    } catch {
+      /* 指针已释放 */
+    }
+  };
+
+  // 文件面板 → 终端：拖入路径写入命令行，Shift 拖入变成 cd
+  const [dropOver, setDropOver] = useState(false);
+  const onTermDragOver = (ev: ReactDragEvent<HTMLElement>) => {
+    if (!ev.dataTransfer.types.includes("text/plain")) return;
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "copy";
+    if (!dropOver) setDropOver(true);
+  };
+  const onTermDrop = (ev: ReactDragEvent<HTMLElement>) => {
+    const raw = ev.dataTransfer.getData("text/plain");
+    setDropOver(false);
+    if (!raw) return;
+    ev.preventDefault();
+    const paths = raw
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((p) => (/[\s"'$]/.test(p) ? `"${p.replace(/"/g, '\\"')}"` : p));
+    if (!paths.length) return;
+    const text =
+      ev.shiftKey && paths.length === 1
+        ? `cd ${paths[0]} `
+        : paths.map((p) => `${p} `).join("");
+    window.dispatchEvent(new CustomEvent("shellora:insert-path", { detail: { text } }));
+  };
+
   useEffect(() => {
     applyUiTheme(theme, document.documentElement);
     storeUiTheme(theme, window.localStorage);
@@ -170,6 +331,13 @@ export default function App() {
       /* 隐私模式忽略 */
     }
   }, [railCollapsed]);
+
+  // v2：会话库默认收起（终端独占主视区），Ctrl+B 或左上按钮按需呼出；
+  // 窄窗口下文件面板默认覆盖，避免把终端压得过窄。
+  useEffect(() => {
+    setRailCollapsed(true);
+    if (window.innerWidth < 1360) setPanelLayout("overlay");
+  }, []);
 
   // 展开后定位当前会话：等列宽过渡（200ms）结束再滚动，避免被过渡打断。
   useEffect(() => {
@@ -572,7 +740,7 @@ export default function App() {
     : "无活动会话";
 
   return (
-    <div className="app">
+    <div className={resizing ? "app app--next app--resizing" : "app app--next"}>
       <header className="topbar">
         <div className="brandmark">
           <Icon name="terminal" />
@@ -637,6 +805,111 @@ export default function App() {
         </button>
         <div className="avatar">TZ</div>
       </header>
+
+      {/* 34px 会话条：会话不再占用 248px 常驻侧栏，会话库收进按需浮层 */}
+      <div className="sessionbar">
+        <button
+          type="button"
+          className={railCollapsed ? "sb-toggle" : "sb-toggle on"}
+          title={railCollapsed ? "展开会话库 (Ctrl+B)" : "收起会话库 (Ctrl+B)"}
+          aria-label={railCollapsed ? "展开会话库" : "收起会话库"}
+          aria-pressed={!railCollapsed}
+          onClick={() => setRailCollapsed((prev) => !prev)}
+        >
+          <Icon name="panel" />
+        </button>
+
+        <div className="sb-tabs" role="tablist" aria-label="会话">
+          {tabs.length === 0 ? (
+            <span className="sb-empty">无活动会话 · 从会话库打开一个连接</span>
+          ) : (
+            tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={tab.key === activeKey}
+                className={tab.key === activeKey ? "sbtab on" : "sbtab"}
+                onClick={() => {
+                  setActiveKey(tab.key);
+                  setView("files");
+                }}
+              >
+                <span className={`dot dot--${tab.state.state}`} aria-hidden />
+                <span className="sbtab__t">{tab.label}</span>
+                {tab.key === activeKey ? (
+                  <span
+                    className="sbtab__x"
+                    role="button"
+                    aria-label="关闭会话"
+                    title="关闭会话"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      closeTab(tab.key);
+                    }}
+                  >
+                    <Icon name="x" />
+                  </span>
+                ) : null}
+              </button>
+            ))
+          )}
+        </div>
+
+        <span className="grow" />
+
+        {sftpSummary && sftpSummary.active + sftpSummary.queued > 0 ? (
+          <button
+            type="button"
+            className="sb-chip"
+            title="打开文件面板查看传输队列"
+            onClick={() => {
+              setView("files");
+              setPanelOpen(true);
+            }}
+          >
+            <Icon name="upload" />
+            <b>{sftpSummary.active + sftpSummary.queued}</b>
+            <span>传输中</span>
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          className={panelOpen ? "sb-btn on" : "sb-btn"}
+          title="文件面板 (Ctrl+Shift+E)"
+          aria-expanded={panelOpen}
+          onClick={() => {
+            setView("files");
+            setPanelOpen((prev) => !prev);
+          }}
+        >
+          <Icon name="folder" />
+          <span>文件</span>
+        </button>
+
+        {panelOpen ? (
+          <button
+            type="button"
+            className="sb-btn"
+            title={panelLayout === "push" ? "当前：挤压终端（Alt+P 切换为覆盖）" : "当前：覆盖终端（Alt+P 切换为挤压）"}
+            onClick={() => setPanelLayout((prev) => (prev === "push" ? "overlay" : "push"))}
+          >
+            <Icon name="panel" />
+            <span>{panelLayout === "push" ? "挤压" : "覆盖"}</span>
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          className={view === "connect" ? "sb-btn on" : "sb-btn"}
+          title="新建连接"
+          onClick={() => setView(view === "connect" ? "files" : "connect")}
+        >
+          <Icon name="plus" />
+          <span>连接</span>
+        </button>
+      </div>
 
       <div
         className={[
@@ -893,8 +1166,20 @@ export default function App() {
             </>
           )}
         </aside>
+        {!railCollapsed ? (
+          <button
+            type="button"
+            className="railscrim"
+            aria-label="收起会话库"
+            onClick={() => setRailCollapsed(true)}
+          />
+        ) : null}
 
-        <main className={terminalOpen ? "center center--split" : "center"}>
+        <main
+          className="center center--stage"
+          data-panel={panelOpen ? "open" : "closed"}
+          data-layout={panelLayout}
+        >
           <div className="connectbg" hidden={view !== "connect"}>
               <div className="connpage">
                 <div className="conntop">
@@ -1313,21 +1598,87 @@ export default function App() {
               </div>
             </div>
           <>
-            <SftpManager
-                tabId={activeTab?.tabId ?? null}
-                label={activeTab?.label ?? "未连接"}
-                initialRemotePath={activeTab ? tabCwd[activeTab.key] ?? null : null}
-                onSummary={setSftpSummary}
-                onOpenTerminal={() => setTerminalOpen(true)}
+            <aside
+              className="drawer"
+              aria-label="文件面板"
+              aria-hidden={panelOpen ? "false" : "true"}
+            >
+              <div
+                className="drawer__grip"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="调整文件面板宽度"
+                aria-valuemin={340}
+                aria-valuemax={720}
+                aria-valuenow={Math.round(panelWidth)}
+                title="拖动调整宽度 · 双击恢复默认 · Alt+[ / Alt+] 微调"
+                tabIndex={0}
+                onPointerDown={startResize}
+                onPointerMove={moveResize}
+                onPointerUp={endResize}
+                onPointerCancel={endResize}
+                onDoubleClick={() => setPanelWidth(clampPanelWidth(defaultPanelWidth()))}
+                onKeyDown={(ev) => {
+                  if (ev.key === "ArrowLeft") {
+                    ev.preventDefault();
+                    nudgePanelWidth(1, ev.shiftKey ? 120 : 40);
+                  } else if (ev.key === "ArrowRight") {
+                    ev.preventDefault();
+                    nudgePanelWidth(-1, ev.shiftKey ? 120 : 40);
+                  } else if (ev.key === "Home") {
+                    ev.preventDefault();
+                    setPanelWidth(clampPanelWidth(defaultPanelWidth()));
+                  }
+                }}
               />
-
-              <section className={terminalOpen ? "termcard open" : "termcard closed"}>
+              {resizing ? (
+                <div
+                  className="drawer__wbar"
+                  aria-hidden="true"
+                  style={{
+                    left: Math.max(8, window.innerWidth - 8 - Math.round(panelWidth) - 52),
+                    top: 96,
+                  }}
+                >
+                  {Math.round(panelWidth)}px
+                </div>
+              ) : null}
+              <div className="drawer__head">
+                <Icon name="folder" />
+                <b>文件</b>
+                <span className="drawer__host">{activeTab?.label ?? "未连接"}</span>
+                <span className="grow" />
+                <span className="drawer__w">{Math.round(panelWidth)}px</span>
                 <button
                   type="button"
-                  className="termbar"
-                  onClick={() => setTerminalOpen((prev) => !prev)}
-                  aria-expanded={terminalOpen}
+                  className="drawer__x"
+                  aria-label="收起文件面板"
+                  title="收起 (Ctrl+Shift+E)"
+                  onClick={() => setPanelOpen(false)}
                 >
+                  <Icon name="x" />
+                </button>
+              </div>
+              <div className="drawer__body">
+                <SftpManager
+                  tabId={activeTab?.tabId ?? null}
+                  label={activeTab?.label ?? "未连接"}
+                  initialRemotePath={activeTab ? tabCwd[activeTab.key] ?? null : null}
+                  onSummary={setSftpSummary}
+                  onOpenTerminal={() => setPanelOpen(false)}
+                  active={panelOpen}
+                />
+              </div>
+            </aside>
+
+            <section
+              className="termcard open termcard--stage"
+              data-drop={dropOver ? "1" : "0"}
+              onDragOver={onTermDragOver}
+              onDragLeave={() => setDropOver(false)}
+              onDrop={onTermDrop}
+            >
+                <div className="termbar">
                   <span className="htile">
                     <Icon name="terminal" />
                   </span>
@@ -1344,11 +1695,7 @@ export default function App() {
                       {message.text}
                     </span>
                   ) : null}
-                  <span className="thbtn">
-                    {terminalOpen ? "收起" : "展开"}
-                    <Icon name={terminalOpen ? "chevronDown" : "chevronUp"} />
-                  </span>
-                </button>
+                </div>
 
                 <div className="termbody">
                   {tabs.length > 0 ? (
@@ -1533,7 +1880,11 @@ export default function App() {
           SFTP <b className="num">{sftpSummary?.done ?? 0}</b> 已完成
         </span>
         <span className="cell">
-          <b>{terminalOpen ? "上下分栏" : "终端已收起"}</b>
+          <b>
+            {panelOpen
+              ? `文件面板 · ${panelLayout === "push" ? "挤压中" : "覆盖中"} · ${Math.round(panelWidth)}px`
+              : "文件面板已收起"}
+          </b>
         </span>
         <span className="cell">{message ? message.text : "玻璃拟态关闭 · 实色面板"}</span>
         <span className="grow" />

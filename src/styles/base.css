@@ -3841,3 +3841,737 @@ select.in2 {
     scroll-behavior: auto !important;
   }
 }
+
+/* =====================================================================
+   v2 骨架：终端优先，文件按需（方案一）
+   - 顶栏 36 / 会话条 34 / 状态栏 22，全部收在 .app--next 作用域内
+   - 终端是全宽主视区，文件面板以抽屉形态呼出（push / overlay）
+   - 会话库不再占用 248px 常驻栅格，改为按需浮层
+   ===================================================================== */
+
+.app--next .topbar {
+  height: 36px;
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.app--next .brandmark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.app--next .brandmark .ic {
+  width: 13px;
+  height: 13px;
+}
+
+.app--next .brand {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.app--next .navpills {
+  gap: 2px;
+}
+
+.app--next .navpill {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+  border-radius: 5px;
+  gap: 5px;
+}
+
+.app--next .navpill .ic {
+  width: 13px;
+  height: 13px;
+}
+
+.app--next .searchbox,
+.app--next .avatar,
+.app--next .rail-toggle {
+  display: none;
+}
+
+.app--next .topbar .iconbtn {
+  width: 24px;
+  height: 24px;
+}
+
+/* ---------------- 会话条 34px ---------------- */
+
+.sessionbar {
+  height: 34px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sb-toggle,
+.sb-btn,
+.sb-chip {
+  height: 24px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sb-toggle .ic,
+.sb-btn .ic,
+.sb-chip .ic {
+  width: 13px;
+  height: 13px;
+}
+
+.sb-toggle:hover,
+.sb-btn:hover,
+.sb-chip:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.sb-toggle.on,
+.sb-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.sb-chip {
+  border-color: var(--border);
+  color: var(--text-2);
+}
+
+.sb-chip b {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sb-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sbtab {
+  height: 24px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sbtab:hover {
+  background: var(--surface-2);
+}
+
+.sbtab.on {
+  background: var(--surface-3);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
+.sbtab__t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.sbtab__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  color: var(--text-3);
+}
+
+.sbtab__x:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.sbtab__x .ic {
+  width: 10px;
+  height: 10px;
+}
+
+.sb-empty {
+  font-size: 11px;
+  color: var(--text-3);
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+/* ---------------- 主体：单列 + 抽屉 ---------------- */
+
+.app--next .shellbody {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: block;
+  padding: 0;
+  gap: 0;
+  transition: none;
+}
+
+.app--next .center--stage {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: block;
+  padding: 8px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.app--next .termcard--stage {
+  height: 100%;
+  border-radius: 8px;
+  transition: margin-right 140ms ease;
+}
+
+.app--next .center--stage[data-panel="open"][data-layout="push"] .termcard--stage {
+  margin-right: calc(var(--panel-w, 420px) + 6px);
+}
+
+.app--next .termcard--stage .termbar {
+  height: 32px;
+  padding: 0 10px;
+}
+
+.app--next .termcard--stage .termbar .htile {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
+.app--next .termcard--stage .termtabs {
+  display: none;
+}
+
+.app--next .termcard--stage .termbody {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 会话库：248px 浮层，不再挤压主视区 */
+
+.app--next .rail {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 248px;
+  z-index: 31;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+  display: flex;
+}
+
+.app--next .rail--mini {
+  display: none;
+}
+
+.app--next .railscrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  padding: 0;
+  border: 0;
+  background: var(--scrim);
+  cursor: default;
+}
+
+.app--next .rightrail {
+  display: none;
+}
+
+/* ---------------- 文件抽屉 ---------------- */
+
+.app--next .drawer {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: var(--panel-w, 420px);
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-3);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(16px);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
+}
+
+.app--next .center--stage[data-panel="open"] .drawer {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+/* 拖动分隔条时的宽度气泡（贴在面板左侧） */
+.drawer__wbar {
+  position: fixed;
+  z-index: 60;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--text-1);
+  color: var(--surface);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  box-shadow: var(--shadow-2);
+}
+
+.drawer__grip {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  z-index: 3;
+  cursor: col-resize;
+  outline: none;
+  touch-action: none;
+}
+
+.drawer__grip::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 38%;
+  width: 2px;
+  height: 24%;
+  max-height: 64px;
+  border-radius: 2px;
+  background: var(--border);
+  opacity: 0;
+  transition: opacity 120ms, background-color 120ms, width 120ms;
+}
+
+.app--next .drawer:hover .drawer__grip::after,
+.app--resizing .drawer__grip::after {
+  opacity: 1;
+}
+
+.app--resizing .drawer__grip::after,
+.drawer__grip:focus-visible::after {
+  background: var(--accent);
+  width: 3px;
+  opacity: 1;
+}
+
+.drawer__grip:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.app--resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.app--resizing .drawer,
+.app--resizing .termcard--stage {
+  transition: none;
+}
+
+.drawer__head {
+  height: 32px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.drawer__head .ic {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+}
+
+.drawer__head b {
+  color: var(--text-1);
+  font-size: 12px;
+}
+
+.drawer__host {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer__w {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer__x {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.drawer__x:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.drawer__x .ic {
+  width: 12px;
+  height: 12px;
+  color: inherit;
+}
+
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 抽屉内不再需要大标题行与右侧统计列 */
+.app--next .drawer__body > .files {
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px 8px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.app--next .drawer .filehead {
+  height: 30px;
+  padding: 0 2px;
+}
+
+.app--next .drawer .filehead h2 {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.app--next .drawer .filehead .hostchip {
+  font-size: 10px;
+}
+
+/* 单页模式：本地/远端二选一，抽屉里不再左右并排 */
+.app--next .drawer .fsp--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app--next .drawer .fsp--single .pane-slot {
+  display: none;
+  min-height: 0;
+}
+
+.app--next .drawer .fsp--single .pane-slot.on {
+  display: contents;
+}
+
+.app--next .drawer .fsp--single .axis {
+  display: none;
+}
+
+.app--next .drawer .seg--pane {
+  height: 20px;
+  flex: none;
+}
+
+.app--next .drawer .seg--pane button {
+  height: 20px;
+  padding: 0 7px;
+  font-size: 10px;
+}
+
+/* 传输队列在抽屉里压低，目录列表优先 */
+.app--next .drawer .queue2 {
+  flex: none;
+  max-height: 168px;
+  overflow: auto;
+}
+
+/* 折叠后只留一行表头：计数与速度仍然可见 */
+.app--next .drawer .queue2--folded {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.queue2--folded .qlist,
+.queue2--folded .qempty {
+  display: none;
+}
+
+.queue2--folded .qhead2 {
+  border-bottom: 0;
+}
+
+/* ---------------- 状态栏 22px ---------------- */
+
+.app--next .statusbar {
+  height: 22px;
+  font-size: 10px;
+  padding: 0 10px;
+  gap: 14px;
+}
+
+.app--next .statusbar .cell b {
+  font-weight: 600;
+}
+
+/* 顶栏不再重复导航：入口集中在 34px 会话条，顶栏只留品牌 / 更新 / 主题 */
+.app--next .navpills {
+  display: none;
+}
+
+/* 抽屉内去掉重复的 Files 标题与主机名（抽屉头已经有了） */
+.app--next .drawer .filehead h2,
+.app--next .drawer .filehead .hostchip {
+  display: none;
+}
+
+.app--next .drawer .filehead {
+  gap: 8px;
+}
+
+/* ---------------- 抽屉常驻操作行 ---------------- */
+
+.app--next .dops {
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.app--next .dop {
+  height: 24px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app--next .dop .ic {
+  width: 12px;
+  height: 12px;
+}
+
+.app--next .dop:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.app--next .dop:disabled {
+  color: var(--text-3);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.app--next .dop--primary {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.app--next .dop--primary:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.app--next .dop--danger:hover:not(:disabled) {
+  background: var(--danger-soft, var(--surface-2));
+  color: var(--danger);
+}
+
+.app--next .dops__sel {
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  padding-right: 3px;
+  white-space: nowrap;
+}
+
+.app--next .dedit {
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.app--next .dedit .ic {
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+}
+
+.app--next .dedit__label {
+  flex: none;
+  color: var(--text-3);
+  font-size: 10px;
+}
+
+.app--next .dedit input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-1);
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* 文件拖到终端时的落点提示 */
+.app--next .termcard--stage[data-drop="1"] {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+/* 文件行右键菜单（通过 portal 挂在 body 上，故不放在 .app--next 作用域内） */
+.ctxmenu {
+  position: fixed;
+  z-index: 80;
+  min-width: 184px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-3);
+  animation: ctxmenu-in 90ms ease-out;
+}
+
+@keyframes ctxmenu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.ctxmenu__head {
+  padding: 5px 8px 6px;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ctxmenu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctxmenu button .ic {
+  width: 14px;
+  height: 14px;
+  color: var(--text-3);
+}
+
+.ctxmenu button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.ctxmenu button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ctxmenu button.danger,
+.ctxmenu button.danger .ic {
+  color: var(--danger);
+}
+
+.ctxmenu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-soft);
+}
