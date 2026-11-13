@@ -5,6 +5,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import {
   connTest,
@@ -412,6 +413,33 @@ export default function App() {
       setMessage({ tone: "warn", text: `会话库不可用：${errorText(err)}` }),
     );
   }, [refreshLibrary]);
+
+  // Tauri 原生窗口级文件拖入：转发为自定义事件让 SftpManager 监听。
+  // 浏览器预览环境里会抛错，忽略即可。
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    (async () => {
+      try {
+        const wv = getCurrentWebview();
+        unlisten = await wv.onDragDropEvent((ev) => {
+          // 只关心 drop 事件（文件真正落进窗口时）
+          if (ev.payload.type !== "drop") return;
+          const paths: string[] = (ev.payload.paths ?? []).filter(
+            (p: unknown) => typeof p === "string" && p.length > 0,
+          );
+          if (!paths.length) return;
+          window.dispatchEvent(
+            new CustomEvent("shellora:external-drop", { detail: { paths } }),
+          );
+        });
+      } catch {
+        // 浏览器预览环境下 `getCurrentWebview` 不可用：忽略
+      }
+    })();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const patch = (key: keyof FormState) => (ev: { target: { value: string } }) =>
     setForm((prev) => ({ ...prev, [key]: ev.target.value }));

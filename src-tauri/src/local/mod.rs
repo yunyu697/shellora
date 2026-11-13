@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::{ErrorCode, ErrorDto};
-use crate::ipc::dto::{DirEntryDto, LocalDirPageDto};
+use crate::ipc::dto::{DirEntryDto, LocalDirPageDto, LocalStatDto};
 
 /// 默认每页条数（与远端保持一致）。
 pub const LOCAL_PAGE_SIZE: usize = 500;
@@ -23,6 +23,25 @@ pub fn home_dir() -> String {
         .or_else(|| std::env::current_dir().ok())
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| ".".to_string())
+}
+
+/// 读取单路径元数据（供外部文件拖入时判断文件/目录）。
+pub async fn stat(path: String) -> Result<LocalStatDto, ErrorDto> {
+    let p = PathBuf::from(&path);
+    let meta = fs::symlink_metadata(&p).map_err(map_io)?;
+    let is_symlink = meta.file_type().is_symlink();
+    let is_dir = if is_symlink {
+        // 跟随 symlink 判断
+        fs::metadata(&p).map(|m| m.file_type().is_dir()).unwrap_or(false)
+    } else {
+        meta.file_type().is_dir()
+    };
+    let size = meta.len();
+    Ok(LocalStatDto {
+        is_dir,
+        is_symlink,
+        size,
+    })
 }
 
 /// 读取本地目录的一页。`offset` 从 0 开始，返回 `has_more` 供前端继续拉取。

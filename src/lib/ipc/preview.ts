@@ -213,10 +213,43 @@ const internals: Internals = {
         return LOCAL_ROOT;
       case "local_list_dir":
         return listDir(String(args.path ?? LOCAL_ROOT));
+      case "local_stat": {
+        const p = String(args.path ?? "");
+        const local = localEntries.find((e) => e.path === p);
+        const remote = remoteEntries.find((e) => e.path === p);
+        const e = local ?? remote;
+        let result;
+        if (e) {
+          result = { isDir: e.isDir, isSymlink: false, size: e.size };
+        } else {
+          const base = p.split(/[\\/]/).pop() ?? "";
+          result = { isDir: !base.includes("."), isSymlink: false, size: 0 };
+        }
+        const log = ((window as unknown as Record<string, unknown>).__PREVIEW_OPS__ ??= []) as Array<
+          Record<string, unknown>
+        >;
+        log.push({ cmd: "local_stat", path: p, result });
+        return result;
+      }
       case "transfer_list":
         return queue(conflictMode);
       case "transfer_list_groups":
         return [];
+      case "transfer_enqueue": {
+        const items = Array.isArray(args.items) ? args.items : [];
+        const log = ((window as unknown as Record<string, unknown>).__PREVIEW_OPS__ ??= []) as Array<
+          Record<string, unknown>
+        >;
+        for (const it of items) {
+          log.push({
+            cmd: "transfer_enqueue",
+            direction: it.direction,
+            localPath: it.localPath,
+            remotePath: it.remotePath,
+          });
+        }
+        return items.map((_: unknown, i: number) => "t" + Date.now() + "_" + i);
+      }
       case "sftp_list_dir": {
         const path = String(args.path ?? REMOTE_ROOT);
         const listingId = String(args.listingId ?? "");

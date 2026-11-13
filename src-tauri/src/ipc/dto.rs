@@ -390,6 +390,15 @@ pub struct TreeGroupStartedDto {
     pub bytes: u64,
 }
 
+/// 本地单路径元数据（用于外部文件拖入时区分文件/目录）。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalStatDto {
+    pub is_dir: bool,
+    pub is_symlink: bool,
+    pub size: u64,
+}
+
 /// 数据清理结果（M6 验收 5）。只报告应用自有数据，不涉及系统 `~/.ssh`。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

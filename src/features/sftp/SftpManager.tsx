@@ -13,6 +13,7 @@ import {
   localMkdir,
   localRemove,
   localRename,
+  localStat,
   remoteMkdir,
   remoteRemove,
   remoteRename,
@@ -622,6 +623,61 @@ export function SftpManager({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  // 外部文件拖入（Tauri 窗口级 file drop）：直接入队上传到当前远端目录
+  useEffect(() => {
+    if (!active || !tabId || !remote.path) return;
+    let cancelled = false;
+    const onDrop = async (ev: Event) => {
+      const detail = (ev as CustomEvent<{ paths: string[] }>).detail;
+      const paths = detail?.paths?.filter(Boolean) ?? [];
+      if (!paths.length) return;
+      if (paneView !== "remote") {
+        setNotice("切换到远端窗格后再拖入即可上传");
+        return;
+      }
+      const stats = await Promise.all(
+        paths.map((p) => localStat(p).catch(() => ({ isDir: false, isSymlink: false, size: 0 }))),
+      );
+      if (cancelled) return;
+      const files: string[] = [];
+      const dirs: string[] = [];
+      paths.forEach((p, i) => {
+        const st = stats[i];
+        if (st.isDir && !st.isSymlink) dirs.push(p);
+        else files.push(p);
+      });
+      const items = files.map((localPath) => ({
+        direction: "upload" as const,
+        tabId,
+        remotePath: joinRemote(remote.path, basename(localPath)),
+        localPath,
+      }));
+      if (items.length > 0) {
+        void enqueue(items);
+        setNotice(`已入队 ${items.length} 个文件`);
+      }
+      if (dirs.length > 0) {
+        setTreePrompt({
+          items: dirs.map<DirEntry>((p) => ({
+            path: p,
+            name: basename(p),
+            isDir: true,
+            isSymlink: false,
+            size: 0,
+            mtime: 0,
+          })),
+          direction: "upload",
+          destDir: remote.path,
+        });
+      }
+    };
+    window.addEventListener("shellora:external-drop", onDrop);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("shellora:external-drop", onDrop);
+    };
+  }, [active, tabId, remote.path, paneView, enqueue]);
 
   const confirmTree = async () => {
     const prompt = treePrompt;

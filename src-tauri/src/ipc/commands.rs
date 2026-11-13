@@ -394,6 +394,11 @@ pub async fn local_list_dir(
 }
 
 #[tauri::command]
+pub async fn local_stat(path: String) -> Result<crate::ipc::dto::LocalStatDto, ErrorDto> {
+    crate::local::stat(path).await
+}
+
+#[tauri::command]
 pub async fn local_mkdir(path: String) -> Result<(), ErrorDto> {
     crate::local::create_dir(path).await
 }

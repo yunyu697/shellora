@@ -145,6 +145,17 @@ export function listLocalDir(path: string, offset: number, limit = 500): Promise
   return invoke<LocalDirPage>("local_list_dir", { path, offset, limit });
 }
 
+export interface LocalStat {
+  isDir: boolean;
+  isSymlink: boolean;
+  size: number;
+}
+
+/** 读取单本机路径元数据（用于外部文件拖入时区分文件/目录）。 */
+export function localStat(path: string): Promise<LocalStat> {
+  return invoke<LocalStat>("local_stat", { path });
+}
+
 /** 删除本机文件或空目录（符号链接只删链接本身）。 */
 export function localRemove(path: string, isDir: boolean): Promise<void> {
   return invoke("local_remove", { path, isDir });

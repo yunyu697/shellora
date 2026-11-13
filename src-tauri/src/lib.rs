@@ -68,6 +68,7 @@ pub fn run() {
             ipc::commands::sftp_cancel_list,
             ipc::commands::local_home,
             ipc::commands::local_list_dir,
+            ipc::commands::local_stat,
             ipc::commands::local_remove,
             ipc::commands::local_mkdir,
             ipc::commands::local_rename,
