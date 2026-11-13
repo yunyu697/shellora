@@ -8,8 +8,8 @@ use crate::config::{MAX_TABS, SFTP_DIR_PAGE_SIZE, TERM_PERMIT_BYTES};
 use crate::error::ErrorDto;
 use crate::ipc::dto::{
     ConnStateDto, ConnectionInput, DataClearReport, DirListMsg, LocalDirPageDto, OpenTabDto,
-    QueueMsg, SecretProbeDto, StreamMsg, TransferEnqueueItem, TransferGroupDto, TransferMsg,
-    TransferResultDto, TransferTaskDto, TreeEnqueueRequest, TreeGroupStartedDto,
+    QueueMsg, SecretProbeDto, StreamMsg, TraySettingsDto, TransferEnqueueItem, TransferGroupDto,
+    TransferMsg, TransferResultDto, TransferTaskDto, TreeEnqueueRequest, TreeGroupStartedDto,
 };
 use crate::session::{actor, Ctrl, SessionEntry};
 use crate::sftp::{SharedSsh, TransferRequest};
@@ -457,6 +457,40 @@ pub fn ui_action(action: String) {
     } else {
         crate::lifecycle::note(action);
     }
+}
+
+// ---------------------------------------------------------------------------
+// 托盘（1.0.10）
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn tray_settings_get(app: AppHandle) -> TraySettingsDto {
+    let (close_to_tray, tray_hint_shown) = crate::tray::settings_snapshot(&app);
+    TraySettingsDto {
+        close_to_tray,
+        tray_hint_shown,
+    }
+}
+
+#[tauri::command]
+pub fn tray_settings_set(app: AppHandle, close_to_tray: bool) -> TraySettingsDto {
+    crate::lifecycle::note(if close_to_tray {
+        "settings.close_to_tray.on"
+    } else {
+        "settings.close_to_tray.off"
+    });
+    crate::tray::set_close_to_tray(&app, close_to_tray);
+    tray_settings_get(app)
+}
+
+/// 前端把活动会话与连接状态同步给托盘（菜单项 + tooltip）。
+#[tauri::command]
+pub fn tray_sync(
+    app: AppHandle,
+    sessions: Vec<crate::tray::TraySession>,
+    connected: Option<String>,
+) {
+    crate::tray::sync(&app, sessions, connected);
 }
 
 // ---------------------------------------------------------------------------

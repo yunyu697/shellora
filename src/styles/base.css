@@ -3100,10 +3100,70 @@ select.in2 {
   font-size: 12px;
 }
 
+/* 设置卡片里的分组与开关行（托盘，1.0.10） */
+.settings-section {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-field input {
+  margin-top: 2px;
+}
+
+.settings-field span {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-field small {
+  color: var(--text-3);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .settings-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* 托盘首次驻留提示（1.0.10）：窗口隐藏前短暂可见 */
+.tray-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 52px;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  color: var(--text-1);
+  font-size: 12px;
+}
+
+.tray-toast .ic {
+  width: 14px;
+  height: 14px;
+  color: var(--success);
 }
 
 .paste-guard {

@@ -2,6 +2,14 @@
 
 use serde::{Deserialize, Serialize};
 
+/// 托盘相关设置快照（前端「设置」里读取）。
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraySettingsDto {
+    pub close_to_tray: bool,
+    pub tray_hint_shown: bool,
+}
+
 /// 前端 → Rust 的连接参数。
 ///
 /// 认证优先级：`privateKey` > `agent` > `password`。

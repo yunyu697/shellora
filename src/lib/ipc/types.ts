@@ -297,3 +297,18 @@ export interface DataClearReport {
   dbPath: string;
   warnings: string[];
 }
+
+// ---- 托盘（1.0.10）----
+
+export interface TraySettings {
+  closeToTray: boolean;
+  trayHintShown: boolean;
+}
+
+/** 托盘菜单里的一条活动会话；`active` 决定是否加圆点标记。 */
+export interface TraySessionInfo {
+  key: string;
+  label: string;
+  state: string;
+  active: boolean;
+}

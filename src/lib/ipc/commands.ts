@@ -21,6 +21,8 @@ import type {
   TransferTask,
   TreeEnqueueRequest,
   TreeGroupStarted,
+  TraySessionInfo,
+  TraySettings,
 } from "./types";
 
 export function openTerminal(
@@ -265,4 +267,23 @@ export function probeCaptionHit(x: number, y: number, scale: number): Promise<st
 /** 退出诊断打点：只留最后一条；`ui:relaunch*` 会额外记一条重启意图。 */
 export function noteUiAction(action: string): Promise<void> {
   return invoke("ui_action", { action });
+}
+
+// ---- 托盘（1.0.10）----
+
+export function traySettingsGet(): Promise<TraySettings> {
+  return invoke<TraySettings>("tray_settings_get");
+}
+
+/** 开关「关闭窗口时最小化到托盘」；返回落盘后的快照。 */
+export function traySettingsSet(closeToTray: boolean): Promise<TraySettings> {
+  return invoke<TraySettings>("tray_settings_set", { closeToTray });
+}
+
+/** 把活动会话与连接状态同步给托盘（菜单项 + tooltip）。 */
+export function traySync(
+  sessions: TraySessionInfo[],
+  connected: string | null,
+): Promise<void> {
+  return invoke("tray_sync", { sessions, connected });
 }

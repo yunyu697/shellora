@@ -281,3 +281,46 @@ v2 的判断标准只有一条：**实际长时间使用是否顺手**。由此�
 - 2026-11-13 修复：SSH 客户端曾设 `inactivity_timeout = 60s`，空闲一分钟即被自身拆链，表现为 SFTP 传输后通道莫名 EOF；已改为 `None`，不再按空闲时长主动断开。
 - 2026-11-13 修复：`tab_id` 在握手完成前就返回给前端，抽屉首帧的远端列表可能抢在会话就绪前发出而报 `CHANNEL_CLOSED`；SFTP 侧 `open_stream` 现在等句柄就绪（100ms 轮询，上限 8s）。
 - 方案二的"单视区"思路可在窄窗口下作为独立模式再评估。
+
+## 13. 系统托盘（1.0.10）
+
+### 13.1 默认不驻留
+
+关闭窗口仍按老语义退出程序：`WindowEvent::CloseRequested` 里先把 `lifecycle.reason` 记为 `window_close`，随后走正常销毁与退出（实测 `last_action=window.destroyed`，不是被强杀）。
+
+托盘默认只是一个"窗口最小化后可见"的入口，不改变关窗行为。设置 → 托盘 → 复选框「关闭窗口时最小化到托盘」默认**不勾选**；只有用户主动勾选后，`CloseRequested` 才 `api.prevent_close()` 并隐藏窗口，SSH 会话保持连接。
+
+驻留首次发生时给一次应用内提示（右下角 toast，6s 自动消失）："Shellora 仍在后台运行，可从托盘图标恢复"。提示只出现一次，由 `settings.json` 的 `trayHintShown` 记忆，避免每次关窗都打扰。
+
+### 13.2 托盘菜单
+
+| 菜单项 | 行为 |
+|---|---|
+| 显示/隐藏主窗口 | 切换可见性（来自菜单的显式意图，不是单击） |
+| 新建连接 | 显示并前移窗口，切到连接页 |
+| 活动会话 ▸ | 子菜单列出当前会话，`● ` 标出激活项，点击直接切到该会话 |
+| 退出 Shellora | 与主窗口关闭同一清理路径（见 13.4） |
+
+无活动会话时子菜单里放一个禁用的「（暂无活动会话）」，菜单结构不跳动。菜单文案不随主题变化（跟随系统菜单样式）。
+
+### 13.3 图标与 tooltip
+
+- 深浅两版图标由现有品牌图 `src/assets/brand/shellora-dark.svg` / `shellora-light.svg` 派生（不另画风格），按 16/24/32/48 四档光栅化，PNG 帧打包成多尺寸 ICO，资产在 `src-tauri/icons/tray/`。
+- 选版规则：窗口 `theme()` 为 `Dark` 时用 light 版（深色任务栏 → 浅色图标），否则用 dark 版（浅色任务栏 → 深色图标）；`ThemeChanged` / `ScaleFactorChanged` 时重设。
+- tooltip 文案：`Shellora — 未连接` / `Shellora — 已连接 user@host`，随会话状态刷新。
+
+### 13.4 退出语义
+
+托盘「退出 Shellora」不调用 `process::exit`：先 `lifecycle.reason = tray_quit`、`note = tray.quit`，向所有活动 SSH 会话发送 `Ctrl::Close` 做优雅断开，400ms 宽限后调用 `AppHandle::exit(0)`，由 Tauri 主循环统一收尾。实测 `lifecycle.log` 记 `last_action=app.exit_requested(0)`、`reason=tray_quit`，夹具 SSH 连接随之消失。
+
+### 13.5 平台差异
+
+| 平台 | 实现 | 实际表现 | 验证状态 |
+|---|---|---|---|
+| Windows 10/11 | Tauri `tray-icon`（内部 `Shell_NotifyIcon`）+ `muda` 菜单 | 图标进入通知区；Win11 新装应用默认被折叠进「显示隐藏的图标」溢出区，需要用户手动拖出（本机测试时通过注册表 `NotifyIconSettings\...\IsPromoted` 临时提升为常显，仅用于取证，未写入产品逻辑）。左键单击/双击显示并前移窗口，右键出菜单。 | 已实机验证（浅/深任务栏、菜单、子菜单、退出、默认关窗退出） |
+| macOS | 菜单栏 `NSStatusItem`（Tauri `tray-icon` 封装） | 图标位于菜单栏右侧；单击默认弹菜单，因此需要 `show_menu_on_left_click(false)` 才能让单击显示窗口；模板图标（template image）能自动反色，但本项目用的是彩色品牌派生图，深浅切换依赖 `theme()`。 | 未验证（无 macOS 环境，代码按通用 API 编写） |
+| Linux | `libayatana-appindicator` / `libappindicator`（Tauri 依赖） | GNOME 默认不显示 AppIndicator，需要安装 `gnome-shell-extension-appindicator` 扩展；KDE 等原生支持。AppIndicator 只支持菜单，不支持左键直接触发自定义动作，单击通常等同于打开菜单。 | 未验证（无 Linux 桌面环境） |
+
+注：Windows 11 上悬停托盘图标时系统侧 tooltip 气泡未能稳定截取（同一图标在浅/深任务栏下均复现），文案本身由 `set_tooltip` 设置在图标上；这一项仅做了代码路径验证，未取得视觉证据。
+
+验证截图在 `design/v2/shots-tray/`：`tray-light-taskbar.png`、`tray-dark-taskbar.png`、`tray-menu.png`、`tray-menu-sessions.png`、`settings-close-to-tray-off.png`、`settings-close-to-tray-on.png`、`tray-still-running-hint.png`。

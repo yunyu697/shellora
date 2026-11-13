@@ -82,4 +82,12 @@ impl SessionRegistry {
     pub fn remove(&self, tab_id: &str) -> Option<Arc<SessionEntry>> {
         self.inner.lock().ok().and_then(|mut m| m.remove(tab_id))
     }
+
+    /// 退出清理用：拿到当前全部会话（不改变注册表）。
+    pub fn all(&self) -> Vec<Arc<SessionEntry>> {
+        self.inner
+            .lock()
+            .map(|m| m.values().cloned().collect())
+            .unwrap_or_default()
+    }
 }

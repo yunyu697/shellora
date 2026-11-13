@@ -21,6 +21,7 @@ import {
   knownHostList,
   probeSecret,
   setCaptionRegions,
+  traySync,
 } from "./lib/ipc/commands";
 import type {
   ConnStateDto,
@@ -38,6 +39,7 @@ import { TerminalPane } from "./features/terminal/TerminalPane";
 import { SftpManager, type SftpSummary } from "./features/sftp/SftpManager";
 import { UpdateButton } from "./features/updater/UpdateButton";
 import { DataResetButton } from "./features/settings/DataResetButton";
+import { TraySettings } from "./features/settings/TraySettings";
 import { applyUiTheme, loadUiTheme, storeUiTheme, type UiTheme } from "./theme";
 import brandDark from "./assets/brand/shellora-dark.svg";
 import brandLight from "./assets/brand/shellora-light.svg";
@@ -368,6 +370,7 @@ export default function App() {
   const [connections, setConnections] = useState<ConnectionRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [message, setMessage] = useState<Message | null>(null);
+  const [trayToast, setTrayToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const [tabs, setTabs] = useState<TabState[]>(() => (previewTab ? [previewTab] : []));
@@ -548,6 +551,61 @@ export default function App() {
     applyUiTheme(theme, document.documentElement);
     storeUiTheme(theme, window.localStorage);
   }, [theme]);
+
+  // 托盘菜单与 tooltip：标签 / 活动标签变化时同步给 Rust。
+  useEffect(() => {
+    if (!IS_TAURI) return;
+    const list = tabs.map((t) => ({
+      key: t.key,
+      label: t.label,
+      state: t.state.state,
+      active: t.key === activeKey,
+    }));
+    const active = tabs.find((t) => t.key === activeKey);
+    const connected =
+      active && active.state.state === "ready"
+        ? `${active.input.username}@${active.input.host}`
+        : null;
+    void traySync(list, connected).catch(() => {});
+  }, [tabs, activeKey]);
+
+  // 托盘菜单动作；首次驻留时在应用内提示“仍在后台运行”。
+  useEffect(() => {
+    if (!IS_TAURI) return;
+    const unlisteners: Array<() => void> = [];
+    let alive = true;
+    void (async () => {
+      try {
+        const offNew = await listen("tray://new-connection", () => setView("connect"));
+        const offActivate = await listen<string>("tray://activate-session", (ev) => {
+          setActiveKey(ev.payload);
+          setView("files");
+        });
+        const offHidden = await listen<{ first: boolean }>("tray://hidden", (ev) => {
+          if (ev.payload?.first) setTrayToast("Shellora 仍在后台运行，可从托盘图标恢复");
+        });
+        if (!alive) {
+          offNew();
+          offActivate();
+          offHidden();
+          return;
+        }
+        unlisteners.push(offNew, offActivate, offHidden);
+      } catch {
+        /* 浏览器预览环境没有 Tauri 事件系统：忽略 */
+      }
+    })();
+    return () => {
+      alive = false;
+      unlisteners.forEach((off) => off());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!trayToast) return;
+    const timer = window.setTimeout(() => setTrayToast(null), 6_000);
+    return () => window.clearTimeout(timer);
+  }, [trayToast]);
 
   useEffect(() => {
     try {
@@ -1432,6 +1490,7 @@ export default function App() {
             </button>
             <div className="usercard">
               <DataResetButton />
+              <TraySettings />
               <span className="grow" />
               <span>{theme === "light" ? "Light" : "Dark"}</span>
             </div>
@@ -2219,6 +2278,13 @@ export default function App() {
               )}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {trayToast ? (
+        <div className="tray-toast" role="status">
+          <Icon name="check" />
+          {trayToast}
         </div>
       ) : null}
 

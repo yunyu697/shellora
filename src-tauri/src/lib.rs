@@ -13,10 +13,12 @@ pub mod local;
 pub mod paths;
 pub mod secret;
 pub mod session;
+pub mod settings;
 pub mod sftp;
 pub mod ssh;
 pub mod terminal;
 pub mod transfer;
+pub mod tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -41,26 +43,47 @@ pub fn run() {
             use tauri::Manager as _;
             let dir = app.path().app_data_dir()?;
             lifecycle::init(&dir);
+            app.manage(settings::SettingsStore::open(&dir));
+            app.manage(tray::TrayState::default());
             let db = db::Database::open(&paths::resolve_db_file(&dir))?;
             app.manage(db);
+            tray::init(app.handle())?;
             #[cfg(windows)]
             caption::attach(app.handle());
             tracing::info!(target: "app", "shellora starting");
             Ok(())
         })
-        .on_window_event(|_window, event| {
+        .on_window_event(|window, event| {
+            use tauri::Manager as _;
             use tauri::WindowEvent as E;
             match event {
-                E::CloseRequested { .. } => {
-                    lifecycle::set_reason("window_close");
-                    lifecycle::note("window.close_requested");
+                E::CloseRequested { api, .. } => {
+                    // 只有用户显式勾选「关闭窗口时最小化到托盘」才驻留；默认仍是关闭即退出。
+                    let hide = window
+                        .app_handle()
+                        .state::<settings::SettingsStore>()
+                        .get()
+                        .close_to_tray;
+                    if hide {
+                        api.prevent_close();
+                        tray::hide_to_tray(window.app_handle());
+                    } else {
+                        lifecycle::set_reason("window_close");
+                        lifecycle::note("window.close_requested");
+                    }
                 }
                 E::Destroyed => lifecycle::note("window.destroyed"),
                 E::Focused(true) => lifecycle::note("window.focus"),
                 E::Resized(_) => lifecycle::note("window.resized"),
                 E::Moved(_) => lifecycle::note("window.moved"),
-                E::ScaleFactorChanged { .. } => lifecycle::note("window.scale_changed"),
-                E::ThemeChanged(_) => lifecycle::note("window.theme_changed"),
+                E::ScaleFactorChanged { .. } => {
+                    lifecycle::note("window.scale_changed");
+                    tray::refresh_icon(window.app_handle());
+                }
+                E::ThemeChanged(_) => {
+                    lifecycle::note("window.theme_changed");
+                    tray::refresh_icon(window.app_handle());
+                }
                 _ => {}
             }
         })
@@ -110,6 +133,9 @@ pub fn run() {
             ipc::commands::window_caption_regions,
             ipc::commands::window_caption_probe,
             ipc::commands::ui_action,
+            ipc::commands::tray_settings_get,
+            ipc::commands::tray_settings_set,
+            ipc::commands::tray_sync,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
