@@ -4802,6 +4802,35 @@ select.in2 {
   width: 104px;
 }
 
+/* 窄面板：日期列让位给文件名，避免文件名被压成一个字符 */
+.app--next .drawer--compact .frow .dt {
+  display: none;
+}
+
+.app--next .drawer--compact .frow .sz {
+  width: 64px;
+}
+
+/* 传输队列：进度条吃剩余宽度，名称保留最小 72px，窄面板隐藏速率/ETA */
+.app--next .drawer .qrow2 {
+  padding: 0 var(--sp-3);
+}
+
+.app--next .drawer .qrow2 .nm {
+  min-width: 72px;
+}
+
+.app--next .drawer .qrow2 .bar {
+  flex: 1 1 72px;
+  width: auto;
+  min-width: 48px;
+}
+
+.app--next .drawer--compact .qrow2 .rate,
+.app--next .drawer--compact .qrow2 .eta {
+  display: none;
+}
+
 .app--next .frow .ftile {
   width: 26px;
   height: 26px;

@@ -4,7 +4,7 @@ import type { DragEvent, MouseEvent as ReactMouseEvent } from "react";
 import { Icon } from "../../components/Icons";
 import type { DirEntry } from "../../lib/ipc/types";
 
-const ROW_H = 36;
+const ROW_H = 44;
 const OVERSCAN = 4;
 
 export type PaneSide = "local" | "remote";
