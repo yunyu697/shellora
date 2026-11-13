@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { clearData } from "../../lib/ipc/commands";
+import { clearData, noteUiAction } from "../../lib/ipc/commands";
 import type { DataClearReport, DataClearScope } from "../../lib/ipc/types";
 import { relaunch } from "@tauri-apps/plugin-process";
 
@@ -197,7 +197,14 @@ export function DataResetButton() {
                   <button type="button" className="btn" onClick={close}>
                     关闭
                   </button>
-                  <button type="button" className="btn btn--primary" onClick={() => void relaunch()}>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => {
+                      // 记一笔“重置后重启”，避免下次启动把它算成异常终止。
+                      void noteUiAction("ui:relaunch:data-reset").finally(() => void relaunch());
+                    }}
+                  >
                     立即重启
                   </button>
                 </div>

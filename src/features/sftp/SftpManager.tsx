@@ -897,7 +897,7 @@ export function SftpManager({
           disabled={selectedLocal.size === 0 || !remote.path || opBusy}
           onClick={uploadSelected}
         >
-          <Icon name="upload" />上传
+          <Icon name="upload" /><span className="dop__t">上传</span>
         </button>
         <button
           type="button"
@@ -906,7 +906,7 @@ export function SftpManager({
           disabled={!canCreate}
           onClick={startCreate}
         >
-          <Icon name="plus" />新建目录
+          <Icon name="plus" /><span className="dop__t">新建目录</span>
         </button>
         <button
           type="button"
@@ -915,7 +915,7 @@ export function SftpManager({
           disabled={selectedRemote.size === 0 || !tabId || opBusy}
           onClick={downloadSelected}
         >
-          <Icon name="download" />下载
+          <Icon name="download" /><span className="dop__t">下载</span>
         </button>
         <button
           type="button"
@@ -924,7 +924,7 @@ export function SftpManager({
           disabled={!canRename}
           onClick={startRename}
         >
-          <Icon name="pencil" />重命名
+          <Icon name="pencil" /><span className="dop__t">重命名</span>
         </button>
         <button
           type="button"
@@ -933,7 +933,7 @@ export function SftpManager({
           disabled={!canDelete}
           onClick={deleteSelected}
         >
-          <Icon name="trash" />删除
+          <Icon name="trash" /><span className="dop__t">删除</span>
         </button>
         <span className="grow" />
         <span className="dops__sel">

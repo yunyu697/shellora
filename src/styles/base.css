@@ -4429,6 +4429,15 @@ select.in2 {
   height: 12px;
 }
 
+/* 抽屉宽度低于 420px 时操作行只留图标，避免按钮被挤出可视区 */
+.app--next .drawer--compact .dop__t {
+  display: none;
+}
+
+.app--next .drawer--compact .dop {
+  padding: 0 5px;
+}
+
 .app--next .dop:hover:not(:disabled) {
   background: var(--surface-2);
   color: var(--text-1);
@@ -4580,3 +4589,495 @@ select.in2 {
   margin: 4px 6px;
   background: var(--border-soft);
 }
+
+/* ==========================================================================
+   2026-11-13 可读性上调 + 顶栏合并
+   字号基线：正文 13 / 终端 15 / 路径 12 / 辅助 11 / 状态 11.5
+   ========================================================================== */
+
+/* 顶栏 36 + 会话条 34 → 合并为一行 46px */
+.app--next .topbar {
+  height: 46px;
+  padding: 0 12px;
+  gap: 10px;
+}
+
+.app--next .brandmark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.app--next .brandmark .ic {
+  width: 16px;
+  height: 16px;
+}
+
+.app--next .brand {
+  font-size: 13.5px;
+}
+
+.app--next .topbar .iconbtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.app--next .topbar .iconbtn .ic {
+  width: 15px;
+  height: 15px;
+}
+
+.app--next .sessionbar--inline {
+  height: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 4px;
+  padding: 0;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+}
+
+.app--next .sb-toggle {
+  width: 30px;
+  height: 30px;
+}
+
+.app--next .sb-toggle .ic {
+  width: 15px;
+  height: 15px;
+}
+
+.app--next .sb-tabs {
+  gap: 4px;
+}
+
+.app--next .sbtab {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  gap: 7px;
+}
+
+.app--next .sbtab__x {
+  width: 18px;
+  height: 18px;
+}
+
+.app--next .sbtab__x .ic {
+  width: 11px;
+  height: 11px;
+}
+
+.app--next .sb-btn,
+.app--next .sb-chip {
+  height: 30px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  gap: 5px;
+}
+
+.app--next .sb-btn .ic,
+.app--next .sb-chip .ic {
+  width: 14px;
+  height: 14px;
+}
+
+.app--next .sb-empty {
+  font-size: 12.5px;
+}
+
+/* 状态栏 22 → 26，字号 10 → 11.5 */
+.app--next .statusbar {
+  height: 26px;
+  font-size: 11.5px;
+  padding: 0 12px;
+  gap: 16px;
+}
+
+/* 终端条：会话名 12.5 / 元信息 11.5 */
+.app--next .termcard--stage .termbar .nm {
+  font-size: 12.5px;
+}
+
+.app--next .termcard--stage .termbar .meta {
+  font-size: 11.5px;
+}
+
+/* 文件列表：行高 36 → 40，文件名 11 → 13 */
+.app--next .frow {
+  height: 40px;
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.app--next .frow .nm {
+  font-size: 13px;
+}
+
+.app--next .frow .sz {
+  font-size: 11px;
+  width: 86px;
+}
+
+.app--next .frow .dt {
+  font-size: 10.5px;
+  width: 104px;
+}
+
+.app--next .frow .ftile {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.app--next .frow .ftile .ic {
+  width: 15px;
+  height: 15px;
+}
+
+.app--next .frow .chk {
+  width: 15px;
+  height: 15px;
+}
+
+.app--next .frow .chk .ic {
+  width: 10px;
+  height: 10px;
+}
+
+/* 路径面包屑：10 → 12 */
+.app--next .crumb2 {
+  height: 38px;
+}
+
+.app--next .crumb2 .c {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.app--next .crumb2 .cb {
+  width: 26px;
+  height: 26px;
+}
+
+.app--next .crumb2 .cb .ic {
+  width: 13px;
+  height: 13px;
+}
+
+/* 抽屉操作行：按钮 24 → 28，字号 11 → 12.5 */
+.app--next .dops {
+  height: 36px;
+}
+
+.app--next .dop {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  gap: 5px;
+}
+
+.app--next .dop .ic {
+  width: 14px;
+  height: 14px;
+}
+
+/* 右键菜单：行高 30 → 34，字号 12.5 → 13 */
+.app--next .ctxmenu button {
+  height: 34px;
+  font-size: 13px;
+}
+
+/* 传输队列跟随正文 */
+.app--next .qhead2 .ttl {
+  font-size: 12px;
+}
+
+.app--next .qrow2 .nm .n {
+  font-size: 12.5px;
+}
+
+.app--next .qrow2 .nm .p {
+  font-size: 10.5px;
+}
+
+/* ==========================================================================
+   自绘标题栏（无边框窗口）
+   ========================================================================== */
+
+.app--next .topbar {
+  user-select: none;
+}
+
+.app--next .wincontrols {
+  display: flex;
+  align-self: stretch;
+  margin: 0 -12px 0 2px;
+  flex: none;
+}
+
+.app--next .wc {
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: default;
+}
+
+.app--next .wc svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+  stroke-linecap: square;
+}
+
+.app--next .wc:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+
+.app--next .wc:active {
+  background: var(--surface-2);
+}
+
+/* 最大化按钮的命中区交给系统（HTMAXBUTTON），DOM 收不到 hover，用 Rust 转发的事件补状态 */
+.app--next .wc--hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+
+.app--next .wc--close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.app--next .wc--close:active {
+  background: #c50f1f;
+  color: #fff;
+}
+
+/* 八向缩放热区 */
+.app--next .rzones {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}
+
+.app--next .rz {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.app--next .rz--n {
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.app--next .rz--s {
+  bottom: 0;
+  left: 10px;
+  right: 10px;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.app--next .rz--w {
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.app--next .rz--e {
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.app--next .rz--nw,
+.app--next .rz--se {
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.app--next .rz--ne,
+.app--next .rz--sw {
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+.app--next .rz--nw {
+  top: 0;
+  left: 0;
+}
+
+.app--next .rz--ne {
+  top: 0;
+  right: 0;
+}
+
+.app--next .rz--sw {
+  bottom: 0;
+  left: 0;
+}
+
+.app--next .rz--se {
+  bottom: 0;
+  right: 0;
+}
+
+/* 最大化：去掉外描边，避免与屏幕边缘产生 1px 错位 */
+.app--next.app--max {
+  border: 0;
+}
+
+/* macOS：保留原生红绿灯，Overlay 标题栏下给左上角让位 */
+.app--next.app--mac .topbar {
+  padding-left: 78px;
+}
+
+.app--next.app--mac .wincontrols {
+  display: none;
+}
+
+/* ==========================================================================
+   2026-11-13 标题栏二次压缩：46px → 36px，左右留白收紧
+   36 = 30px 控件命中高 + 上下各 3px；再低会压到 12.5px 文字基线
+   ========================================================================== */
+
+.app--next .topbar {
+  height: 36px;
+  padding: 0 6px;
+  gap: 6px;
+}
+
+.app--next .brandmark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.app--next .brandmark img {
+  border-radius: 6px;
+}
+
+.app--next .topbar .iconbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.app--next .sessionbar--inline {
+  margin-left: 2px;
+  gap: 6px;
+}
+
+.app--next .sb-toggle {
+  width: 28px;
+  height: 28px;
+}
+
+.app--next .sbtab {
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.app--next .sbtab__x {
+  width: 16px;
+  height: 16px;
+}
+
+.app--next .sb-btn,
+.app--next .sb-chip {
+  padding: 0 8px;
+  gap: 5px;
+}
+
+/* 图标态：默认 28×28 只显示图标，悬停就地展开文字（不换行、不跳位） */
+.app--next .sb-btn--icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  transition: width 0.13s ease, padding 0.13s ease, gap 0.13s ease;
+}
+
+.app--next .sb-btn--icon > span {
+  display: none;
+}
+
+.app--next .sb-btn--icon .ic {
+  width: 15px;
+  height: 15px;
+}
+
+.app--next .sb-btn--icon:hover {
+  width: auto;
+  padding: 0 9px;
+  gap: 5px;
+}
+
+.app--next .sb-btn--icon:hover > span {
+  display: inline;
+}
+
+/* 窗口控制：贴右边缘，40×36 命中区 */
+.app--next .wincontrols {
+  margin: 0 -6px 0 0;
+}
+
+.app--next .wc {
+  width: 40px;
+}
+
+.app--next .wc svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* 状态栏压到 26px 后，旧 32px 单元格会溢出到窗口外，这里按槽高收口 */
+.app--next .statusbar {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.app--next .statusbar .cell {
+  height: 100%;
+  padding: 0 10px;
+  line-height: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app--next .statusbar .cell b,
+.app--next .statusbar .cell span {
+  line-height: 1.2;
+}
+
+/* 应用根节点只占视口，任何内部溢出都由各自滚动容器处理 */
+.app--next {
+  overflow: hidden;
+}
+
+

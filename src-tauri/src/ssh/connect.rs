@@ -182,7 +182,9 @@ async fn connect_route(
 
 fn client_config() -> client::Config {
     client::Config {
-        inactivity_timeout: Some(Duration::from_secs(60)),
+        // 不按空闲时长主动断开：终端/SFTP 常常几十秒没有字节往返，
+        // 60s 上限会把仍健康的连接拆掉（表现为传输后通道莫名 EOF）。
+        inactivity_timeout: None,
         // 大窗口 + 大包：终端吞吐实测依赖它，避免 32KB 级别的窗口往返成为瓶颈。
         window_size: 8 * 1024 * 1024,
         maximum_packet_size: 65536,

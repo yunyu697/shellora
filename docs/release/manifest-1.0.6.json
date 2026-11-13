@@ -1,0 +1,50 @@
+{
+  "version": "1.0.6",
+  "license": "MIT",
+  "thirdPartyNotices": "THIRD_PARTY_NOTICES.md",
+  "generatedAt": "2026-11-13T08:51:38.210Z",
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/bundle/msi/Shellora_1.0.4_x64_en-US.msi",
+      "name": "Shellora_1.0.4_x64_en-US.msi",
+      "bytes": 8175616,
+      "sha256": "5f33ad272a67f71fb050613e6a1c0ffe97c9298c670f24dd1ee737109ee60b84"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/msi/Shellora_1.0.5_x64_en-US.msi",
+      "name": "Shellora_1.0.5_x64_en-US.msi",
+      "bytes": 8179712,
+      "sha256": "74f128a76354ab3b7765a001cb4138d314eb1c13f436fe02943c94c66d355b44"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/msi/Shellora_1.0.6_x64_en-US.msi",
+      "name": "Shellora_1.0.6_x64_en-US.msi",
+      "bytes": 8179712,
+      "sha256": "4f5ed59da4efb37e9f53d32aad3d3c76d58b2fb7d84772038dc9dc021625d776"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Shellora_1.0.4_x64-setup.exe",
+      "name": "Shellora_1.0.4_x64-setup.exe",
+      "bytes": 5906707,
+      "sha256": "9eb789f51eb052dcac138290087251d40e588d1fcd29d1882fa19168f399c5c1"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Shellora_1.0.5_x64-setup.exe",
+      "name": "Shellora_1.0.5_x64-setup.exe",
+      "bytes": 5906994,
+      "sha256": "7cef331d361dd2e3b08638fbb9d273129ac2cf5217ccc4559be2f0f8d1906b9e"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Shellora_1.0.6_x64-setup.exe",
+      "name": "Shellora_1.0.6_x64-setup.exe",
+      "bytes": 5908723,
+      "sha256": "f3a54711263e87b909400b6877950737cef7163015d6c5bacf4811a405f7480f"
+    },
+    {
+      "path": "src-tauri/target/release/shellora.exe",
+      "name": "shellora.exe",
+      "bytes": 21327360,
+      "sha256": "38163de13fa8477fd5108f730f677502782a73d4b8940619dd1c4221391ee8f1"
+    }
+  ]
+}

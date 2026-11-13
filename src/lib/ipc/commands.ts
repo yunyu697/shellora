@@ -247,3 +247,22 @@ export function transferListGroups(): Promise<TransferGroup[]> {
 export function clearData(scope: DataClearScope): Promise<DataClearReport> {
   return invoke<DataClearReport>("data_clear", { scope });
 }
+
+/** 自绘标题栏：把可拖动矩形与最大化按钮下发给 Windows WndProc（CSS px + 缩放比）。 */
+export function setCaptionRegions(
+  caption: Array<[number, number, number, number]>,
+  maxbutton: [number, number, number, number] | null,
+  scale: number,
+): Promise<void> {
+  return invoke("window_caption_regions", { caption, maxbutton, scale });
+}
+
+/** 验证用：真实发送 WM_NCHITTEST 并返回命中码（HTCAPTION / HTMAXBUTTON / HTCLIENT）。 */
+export function probeCaptionHit(x: number, y: number, scale: number): Promise<string> {
+  return invoke<string>("window_caption_probe", { x, y, scale });
+}
+
+/** 退出诊断打点：只留最后一条；`ui:relaunch*` 会额外记一条重启意图。 */
+export function noteUiAction(action: string): Promise<void> {
+  return invoke("ui_action", { action });
+}

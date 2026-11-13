@@ -1,0 +1,140 @@
+# 图标语义重构（示意补丁，未合入）
+# sidebar / layers / columns + 三按钮图标态与悬停展开文字
+# 应用：git apply -p1 design/v2/icon-semantics.patch
+
+diff --git a/src/components/Icons.tsx b/src/components/Icons.tsx
+--- a/src/components/Icons.tsx
++++ b/src/components/Icons.tsx
+@@ -167,16 +167,26 @@ const PATHS: Record<string, ReactNode> = {
+   ),
+   pause: <path d="M7 5v10M13 5v10" />,
+   play: <path d="M7 5l8 5-8 5V5z" />,
+-  panel: (
++  // 侧栏（会话库）开关：外框 + 左侧实心板，与面板行为类图标无共同轮廓
++  sidebar: (
+     <>
+-      <rect x="3" y="3.5" width="14" height="13" rx="1.5" />
+-      <path d="M8.5 3.5v13" />
++      <rect x="2.5" y="4" width="15" height="12" rx="2" />
++      <rect x="2.5" y="4" width="4.2" height="12" rx="2" style={{ fill: "currentColor", fillOpacity: 0.35, stroke: "none" }} />
+     </>
+   ),
+-  split: (
++  // 覆盖（面板浮在终端之上）：上下两层错开的层面
++  layers: (
+     <>
+-      <rect x="3" y="3.5" width="14" height="13" rx="1.5" />
+-      <path d="M10 3.5v13" />
++      <path d="M10 3.2l7 3.6-7 3.6-7-3.6 7-3.6z" />
++      <path d="M3 10.4l7 3.6 7-3.6" />
++    </>
++  ),
++  // 挤压（面板与终端并排）：左栏 + 内部竖直分隔线 + 右栏
++  columns: (
++    <>
++      <rect x="2.6" y="3.8" width="7" height="12.4" rx="1.2" />
++      <rect x="11.4" y="3.8" width="6" height="12.4" rx="1.2" />
++      <path d="M6.4 3.8v12.4" />
+     </>
+   ),
+   sync: (
+
+diff --git a/src/App.tsx b/src/App.tsx
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -1049,7 +1049,7 @@ export default function App() {
+           aria-pressed={railCollapsed}
+           onClick={() => setRailCollapsed((prev) => !prev)}
+         >
+-          <Icon name={railCollapsed ? "chevronRight" : "panel"} />
++          <Icon name="sidebar" />
+         </button>
+ 
+         <div className="searchbox">
+@@ -1074,7 +1074,7 @@ export default function App() {
+           aria-pressed={!railCollapsed}
+           onClick={() => setRailCollapsed((prev) => !prev)}
+         >
+-          <Icon name="panel" />
++          <Icon name="sidebar" />
+         </button>
+ 
+         <div className="sb-tabs" role="tablist" aria-label="会话">
+@@ -1134,8 +1134,9 @@ export default function App() {
+ 
+         <button
+           type="button"
+-          className={panelOpen ? "sb-btn on" : "sb-btn"}
++          className={panelOpen ? "sb-btn sb-btn--icon on" : "sb-btn sb-btn--icon"}
+           title="文件面板 (Ctrl+Shift+E)"
++          aria-label="文件面板"
+           aria-expanded={panelOpen}
+           onClick={() => {
+             setView("files");
+@@ -1149,19 +1150,22 @@ export default function App() {
+         {panelOpen ? (
+           <button
+             type="button"
+-            className="sb-btn"
++            className="sb-btn sb-btn--icon"
+             title={panelLayout === "push" ? "当前：挤压终端（Alt+P 切换为覆盖）" : "当前：覆盖终端（Alt+P 切换为挤压）"}
++            aria-label={panelLayout === "push" ? "当前挤压：切换为覆盖终端" : "当前覆盖：切换为挤压终端"}
++            aria-pressed={panelLayout === "push"}
+             onClick={() => setPanelLayout((prev) => (prev === "push" ? "overlay" : "push"))}
+           >
+-            <Icon name="panel" />
++            <Icon name={panelLayout === "push" ? "columns" : "layers"} />
+             <span>{panelLayout === "push" ? "挤压" : "覆盖"}</span>
+           </button>
+         ) : null}
+ 
+         <button
+           type="button"
+-          className={view === "connect" ? "sb-btn on" : "sb-btn"}
++          className={view === "connect" ? "sb-btn sb-btn--icon on" : "sb-btn sb-btn--icon"}
+           title="新建连接"
++          aria-label="新建连接"
+           onClick={() => setView(view === "connect" ? "files" : "connect")}
+         >
+           <Icon name="plus" />
+
+diff --git a/src/styles/base.css b/src/styles/base.css
+--- a/src/styles/base.css
++++ b/src/styles/base.css
+@@ -5011,6 +5011,35 @@ select.in2 {
+   gap: 5px;
+ }
+ 
++/* 图标态：默认 28×28 只显示图标，悬停就地展开文字（不换行、不跳位） */
++.app--next .sb-btn--icon {
++  width: 28px;
++  height: 28px;
++  padding: 0;
++  justify-content: center;
++  gap: 0;
++  transition: width 0.13s ease, padding 0.13s ease, gap 0.13s ease;
++}
++
++.app--next .sb-btn--icon > span {
++  display: none;
++}
++
++.app--next .sb-btn--icon .ic {
++  width: 15px;
++  height: 15px;
++}
++
++.app--next .sb-btn--icon:hover {
++  width: auto;
++  padding: 0 9px;
++  gap: 5px;
++}
++
++.app--next .sb-btn--icon:hover > span {
++  display: inline;
++}
++
+ /* 窗口控制：贴右边缘，40×36 命中区 */
+ .app--next .wincontrols {
+   margin: 0 -6px 0 0;
+

@@ -687,24 +687,45 @@ impl ProgressCoalescer {
 // ---------------------------------------------------------------------------
 
 /// 在同一 SSH 连接上开一条独立 channel 并请求 `sftp` subsystem。
+///
+/// `tab_id` 在握手完成前就会返回给前端，因此 SFTP 侧可能先于认证到达：
+/// 句柄尚未写入时在这里做短等待（100ms 一跳，最多 [`SFTP_READY_WAIT`]），
+/// 避免刚连上时的首次列表 / 入队传输直接报 `CHANNEL_CLOSED`。
 async fn open_stream(
     ssh: &SharedSsh,
 ) -> Result<russh::ChannelStream<russh::client::Msg>, ErrorDto> {
-    let mut guard = ssh.lock().await;
-    let handle = guard.as_mut().ok_or_else(|| {
-        ErrorDto::new(ErrorCode::ChannelClosed, "SSH 会话尚未就绪，无法开始传输")
-    })?;
+    let deadline = Instant::now() + SFTP_READY_WAIT;
+    loop {
+        let mut guard = ssh.lock().await;
+        let Some(handle) = guard.as_mut() else {
+            drop(guard);
+            if Instant::now() >= deadline {
+                return Err(ErrorDto::new(
+                    ErrorCode::ChannelClosed,
+                    "SSH 会话尚未就绪，无法开始传输",
+                ));
+            }
+            tokio::time::sleep(SFTP_READY_POLL).await;
+            continue;
+        };
 
-    let channel = handle
-        .channel_open_session()
-        .await
-        .map_err(|e| ErrorDto::new(ErrorCode::ChannelClosed, format!("打开通道失败：{e}")))?;
-    channel
-        .request_subsystem(true, "sftp")
-        .await
-        .map_err(|e| ErrorDto::new(ErrorCode::ChannelClosed, format!("请求 sftp 子系统失败：{e}")))?;
-    Ok(channel.into_stream())
+        let channel = handle
+            .channel_open_session()
+            .await
+            .map_err(|e| ErrorDto::new(ErrorCode::ChannelClosed, format!("打开通道失败：{e}")))?;
+        channel
+            .request_subsystem(true, "sftp")
+            .await
+            .map_err(|e| {
+                ErrorDto::new(ErrorCode::ChannelClosed, format!("请求 sftp 子系统失败：{e}"))
+            })?;
+        return Ok(channel.into_stream());
+    }
 }
+
+/// 等待 SSH 句柄就绪的上限与轮询间隔。
+const SFTP_READY_WAIT: Duration = Duration::from_secs(8);
+const SFTP_READY_POLL: Duration = Duration::from_millis(100);
 
 fn sftp_config() -> russh_sftp::client::Config {
     russh_sftp::client::Config {

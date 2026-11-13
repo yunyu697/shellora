@@ -148,8 +148,32 @@ impl Handler for SessionHandler {
         channel: russh::Channel<russh::server::Msg>,
         _session: &mut Session,
     ) -> Result<bool, Self::Error> {
+        eprintln!("channel open id={:?}", channel.id());
         self.channels.lock().await.insert(channel.id(), channel);
         Ok(true)
+    }
+
+    /// 通道关闭时清掉残留句柄：否则同一连接里 ChannelId 复用会拿到已关闭的旧通道。
+    async fn channel_close(
+        &mut self,
+        channel: ChannelId,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.channels.lock().await.remove(&channel);
+        if self.shell_id == Some(channel) {
+            self.shell_id = None;
+        }
+        eprintln!("channel close id={channel:?}");
+        Ok(())
+    }
+
+    async fn channel_eof(
+        &mut self,
+        channel: ChannelId,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        eprintln!("channel eof id={channel:?}");
+        Ok(())
     }
 
     async fn auth_password(&mut self, user: &str, password: &str) -> Result<Auth, Self::Error> {
@@ -274,8 +298,12 @@ impl Handler for SessionHandler {
         // 与真实 sshd 一样把 SFTP 子系统放到独立任务里跑：
         // 若在此 await 整个会话，会话 handler 会被占住，取消/关闭通道时容易卡死。
         let root = self.root.clone();
+        eprintln!("sftp subsystem start id={channel:?} root={}", root.display());
         tokio::spawn(async move {
             russh_sftp::server::run(ch.into_stream(), SftpDisk::new(root)).await;
+            // SFTP 会话结束只关这一条通道，SSH 会话本身应继续存活：
+            // 结束日志与后续 channel open/close 一起构成“传完还能继续操作”的证据。
+            eprintln!("sftp subsystem end id={channel:?}");
         });
         Ok(())
     }
@@ -743,9 +771,11 @@ async fn main() {
         let config = config.clone();
         let root = root.clone();
         tokio::spawn(async move {
+            eprintln!("session open");
             match russh::server::run_stream(config, stream, SessionHandler::new(root)).await {
                 Ok(session) => {
                     let _ = session.await;
+                    eprintln!("session closed");
                 }
                 Err(err) => eprintln!("fixture-sshd session error: {err}"),
             }

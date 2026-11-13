@@ -30,6 +30,7 @@ pub fn terminal_open(
         )));
     }
     let tab_id = uuid::Uuid::now_v7().to_string();
+    crate::lifecycle::note("cmd:terminal_open");
     let entry = SessionEntry::new(tab_id.clone(), input, channel);
     state.sessions.insert(entry.clone());
     actor::spawn(app, entry);
@@ -97,6 +98,7 @@ pub fn terminal_ack(
 
 #[tauri::command]
 pub fn terminal_close(state: State<'_, AppState>, tab_id: String) -> Result<(), ErrorDto> {
+    crate::lifecycle::note("cmd:terminal_close");
     if let Some(entry) = state.sessions.remove(&tab_id) {
         if let Ok(ch) = entry.channels.lock() {
             ch.ctrl_tx.try_send(Ctrl::Close).ok();
@@ -284,6 +286,7 @@ pub async fn sftp_rename(
     from: String,
     to: String,
 ) -> Result<(), ErrorDto> {
+    crate::lifecycle::note("cmd:sftp_rename");
     let ssh = session_ssh(&state, &tab_id)?;
     crate::sftp::rename_path(ssh, from, to).await
 }
@@ -296,6 +299,7 @@ pub async fn sftp_remove(
     path: String,
     is_dir: bool,
 ) -> Result<(), ErrorDto> {
+    crate::lifecycle::note("cmd:sftp_remove");
     let ssh = session_ssh(&state, &tab_id)?;
     crate::sftp::remove_path(ssh, path, is_dir).await
 }
@@ -410,7 +414,49 @@ pub async fn local_rename(from: String, to: String) -> Result<(), ErrorDto> {
 
 #[tauri::command]
 pub async fn local_remove(path: String, is_dir: bool) -> Result<(), ErrorDto> {
+    crate::lifecycle::note("cmd:local_remove");
     crate::local::remove_path(path, is_dir).await
+}
+
+// ---------------------------------------------------------------------------
+// 自绘标题栏：原生命中测试（Windows）
+// ---------------------------------------------------------------------------
+
+/// 前端量测后下发的可拖动区域与最大化按钮矩形（CSS px，相对客户区）。
+/// Windows 上由 WndProc 转成 `HTCAPTION` / `HTMAXBUTTON`，恢复系统拖动与 Win11 贴靠。
+#[tauri::command]
+pub fn window_caption_regions(caption: Vec<[f64; 4]>, maxbutton: Option<[f64; 4]>, scale: f64) {
+    #[cfg(windows)]
+    crate::caption::set_regions(caption, maxbutton, scale);
+    #[cfg(not(windows))]
+    let _ = (caption, maxbutton, scale);
+}
+
+/// 验证用：对指定客户端坐标真实发送 `WM_NCHITTEST`，返回系统会看到的命中码。
+#[tauri::command]
+pub fn window_caption_probe(window: tauri::WebviewWindow, x: f64, y: f64, scale: f64) -> String {
+    #[cfg(windows)]
+    return crate::caption::probe_native(&window, x, y, scale);
+    #[allow(unreachable_code)]
+    {
+        let _ = (window, x, y, scale);
+        "unsupported".to_string()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 退出诊断
+// ---------------------------------------------------------------------------
+
+/// 前端动作打点：只保留最后一条，退出时随 `exit` 记录写盘。
+/// `ui:relaunch*` 会额外落一条 `relaunch_intent`，把「更新/重置后重启」与异常终止区分开。
+#[tauri::command]
+pub fn ui_action(action: String) {
+    if action.starts_with("ui:relaunch") {
+        crate::lifecycle::relaunch_intent(&action);
+    } else {
+        crate::lifecycle::note(action);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +471,7 @@ pub async fn transfer_enqueue(
     items: Vec<TransferEnqueueItem>,
     progress: Channel<QueueMsg>,
 ) -> Result<Vec<String>, ErrorDto> {
+    crate::lifecycle::note(format!("cmd:transfer_enqueue({})", items.len()));
     let mut resolved = Vec::with_capacity(items.len());
     for item in &items {
         resolved.push(session_ssh(&state, &item.tab_id)?);

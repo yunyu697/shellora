@@ -1,11 +1,14 @@
 //! 应用入口：模块声明 + Tauri 装配。
 
 pub mod app;
+#[cfg(windows)]
+pub mod caption;
 pub mod config;
 pub mod db;
 pub mod error;
 pub mod ipc;
 pub mod knownhost;
+pub mod lifecycle;
 pub mod local;
 pub mod paths;
 pub mod secret;
@@ -37,10 +40,29 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager as _;
             let dir = app.path().app_data_dir()?;
+            lifecycle::init(&dir);
             let db = db::Database::open(&paths::resolve_db_file(&dir))?;
             app.manage(db);
+            #[cfg(windows)]
+            caption::attach(app.handle());
             tracing::info!(target: "app", "shellora starting");
             Ok(())
+        })
+        .on_window_event(|_window, event| {
+            use tauri::WindowEvent as E;
+            match event {
+                E::CloseRequested { .. } => {
+                    lifecycle::set_reason("window_close");
+                    lifecycle::note("window.close_requested");
+                }
+                E::Destroyed => lifecycle::note("window.destroyed"),
+                E::Focused(true) => lifecycle::note("window.focus"),
+                E::Resized(_) => lifecycle::note("window.resized"),
+                E::Moved(_) => lifecycle::note("window.moved"),
+                E::ScaleFactorChanged { .. } => lifecycle::note("window.scale_changed"),
+                E::ThemeChanged(_) => lifecycle::note("window.theme_changed"),
+                _ => {}
+            }
         })
         .invoke_handler(tauri::generate_handler![
             ipc::commands::terminal_open,
@@ -85,9 +107,25 @@ pub fn run() {
             ipc::commands::transfer_resolve_group,
             ipc::commands::transfer_list_groups,
             ipc::commands::data_clear,
+            ipc::commands::window_caption_regions,
+            ipc::commands::window_caption_probe,
+            ipc::commands::ui_action,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_handle, event| match event {
+            tauri::RunEvent::ExitRequested { code, .. } => match code {
+                // 主动 `app.exit(code)`：把原因和最后动作都记到这个更具体的点上。
+                Some(code) => {
+                    lifecycle::note(format!("app.exit_requested({code})"));
+                    lifecycle::set_reason(format!("app.exit({code})"));
+                }
+                // 窗口全关后的正常退出：不要覆盖更早的 `window.close_requested`。
+                None => lifecycle::set_reason("last_window_closed"),
+            },
+            tauri::RunEvent::Exit => lifecycle::finish("unknown"),
+            _ => {}
+        });
 }
 
 /// 安装包冒烟用的无窗口入口：`--version` / `--health-check` 在创建任何窗口前返回。

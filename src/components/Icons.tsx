@@ -167,16 +167,26 @@ const PATHS: Record<string, ReactNode> = {
   ),
   pause: <path d="M7 5v10M13 5v10" />,
   play: <path d="M7 5l8 5-8 5V5z" />,
-  panel: (
+  // 侧栏（会话库）开关：外框 + 左侧实心板，与面板行为类图标无共同轮廓
+  sidebar: (
     <>
-      <rect x="3" y="3.5" width="14" height="13" rx="1.5" />
-      <path d="M8.5 3.5v13" />
+      <rect x="2.5" y="4" width="15" height="12" rx="2" />
+      <rect x="2.5" y="4" width="4.2" height="12" rx="2" style={{ fill: "currentColor", fillOpacity: 0.35, stroke: "none" }} />
     </>
   ),
-  split: (
+  // 覆盖（面板浮在终端之上）：上下两层错开的层面
+  layers: (
     <>
-      <rect x="3" y="3.5" width="14" height="13" rx="1.5" />
-      <path d="M10 3.5v13" />
+      <path d="M10 3.2l7 3.6-7 3.6-7-3.6 7-3.6z" />
+      <path d="M3 10.4l7 3.6 7-3.6" />
+    </>
+  ),
+  // 挤压（面板与终端并排）：左栏 + 内部竖直分隔线 + 右栏
+  columns: (
+    <>
+      <rect x="2.6" y="3.8" width="7" height="12.4" rx="1.2" />
+      <rect x="11.4" y="3.8" width="6" height="12.4" rx="1.2" />
+      <path d="M6.4 3.8v12.4" />
     </>
   ),
   sync: (

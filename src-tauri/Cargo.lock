@@ -4425,7 +4425,7 @@ checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
 name = "shellora"
-version = "1.0.3"
+version = "1.0.9"
 dependencies = [
  "async-trait",
  "data-encoding",
@@ -4453,6 +4453,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 

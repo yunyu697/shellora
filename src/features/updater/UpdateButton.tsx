@@ -4,6 +4,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 
 import { Icon } from "../../components/Icons";
+import { noteUiAction } from "../../lib/ipc/commands";
 import {
   classifyError,
   extractManifestSize,
@@ -194,6 +195,8 @@ export function UpdateButton() {
     setRetryStage("install");
     try {
       // Windows 下安装器启动后应用会退出；macOS / Linux 需要手动 relaunch。
+      // 先打点，安装器直接结束进程时下次启动才能归因为“更新重启”。
+      await noteUiAction("ui:relaunch:update");
       await update.install({ restartAfterInstall: true });
       await relaunch();
     } catch (err) {

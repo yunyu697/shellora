@@ -1,6 +1,6 @@
 [package]
 name = "shellora"
-version = "1.0.3"
+version = "1.0.9"
 default-run = "shellora"
 description = "Cross-platform SSH terminal and dual-pane SFTP manager"
 edition = "2021"
@@ -50,6 +50,10 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.20.0", features = ["v7", "serde"] }
 zeroize = "1.8.2"
+
+[target.'cfg(windows)'.dependencies]
+# 自绘标题栏的原生命中测试（WM_NCHITTEST → HTCAPTION / HTMAXBUTTON）
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 hmac = "0.12"

@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   DragEvent as ReactDragEvent,
   FormEvent,
+  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import {
   connTest,
@@ -17,6 +20,7 @@ import {
   knownHostDelete,
   knownHostList,
   probeSecret,
+  setCaptionRegions,
 } from "./lib/ipc/commands";
 import type {
   ConnStateDto,
@@ -133,11 +137,231 @@ const previewView = (window as unknown as { __SHELLORA_PREVIEW_VIEW__?: View })
   .__SHELLORA_PREVIEW_VIEW__;
 const previewCwd = (window as unknown as { __SHELLORA_PREVIEW_CWD__?: string })
   .__SHELLORA_PREVIEW_CWD__;
-const previewTerminal = Boolean(
-  (window as unknown as { __SHELLORA_PREVIEW_TERMINAL__?: boolean }).__SHELLORA_PREVIEW_TERMINAL__,
-);
+
+const IS_MAC = typeof navigator !== "undefined" && /Mac OS X/i.test(navigator.userAgent);
+/** 浏览器预览（vite dev server）没有 Tauri 注入，窗口 API 一律跳过 */
+const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+type ResizeDirection =
+  | "East"
+  | "North"
+  | "NorthEast"
+  | "NorthWest"
+  | "South"
+  | "SouthEast"
+  | "SouthWest"
+  | "West";
+
+/** macOS 走原生红绿灯 + Overlay 标题栏，其余平台自绘窗口控制 */
+function useWindowMaximized(): [boolean, () => void] {
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    if (!IS_TAURI) return;
+    const win = getCurrentWindow();
+    let alive = true;
+    const sync = () => {
+      win
+        .isMaximized()
+        .then((v) => {
+          if (alive) setMaximized(v);
+        })
+        .catch(() => {});
+    };
+    sync();
+    const un = win.onResized(sync);
+    return () => {
+      alive = false;
+      void un.then((off) => off()).catch(() => {});
+    };
+  }, []);
+  return [maximized, () => {
+    if (IS_TAURI) void getCurrentWindow().toggleMaximize();
+  }];
+}
+
+function WindowControls({
+  maximized,
+  onToggle,
+  hover,
+}: {
+  maximized: boolean;
+  onToggle: () => void;
+  hover: boolean;
+}) {
+  if (IS_MAC) return null;
+  return (
+    <div className="wincontrols">
+      <button
+        type="button"
+        className="wc"
+        aria-label="最小化"
+        title="最小化"
+        onClick={() => {
+          if (IS_TAURI) void getCurrentWindow().minimize();
+        }}
+      >
+        <svg viewBox="0 0 12 12" aria-hidden>
+          <path d="M2 6h8" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={hover ? "wc wc--hover" : "wc"}
+        aria-label={maximized ? "还原" : "最大化"}
+        title={maximized ? "还原" : "最大化"}
+        onClick={onToggle}
+      >
+        {maximized ? (
+          <svg viewBox="0 0 12 12" aria-hidden>
+            <path d="M3.5 4.5v-2h6v6h-2" />
+            <path d="M2.5 4.5h5v5h-5z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 12 12" aria-hidden>
+            <path d="M2.5 2.5h7v7h-7z" />
+          </svg>
+        )}
+      </button>
+      <button
+        type="button"
+        className="wc wc--close"
+        aria-label="关闭"
+        title="关闭"
+        onClick={() => {
+          if (IS_TAURI) void getCurrentWindow().close();
+        }}
+      >
+        <svg viewBox="0 0 12 12" aria-hidden>
+          <path d="M3 3l6 6M9 3l-6 6" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/** 无边框窗口的八向缩放热区（最大化时关闭） */
+function ResizeHandles({ enabled }: { enabled: boolean }) {
+  if (IS_MAC || !enabled || !IS_TAURI) return null;
+  const zones: Array<[ResizeDirection, string]> = [
+    ["North", "n"],
+    ["South", "s"],
+    ["West", "w"],
+    ["East", "e"],
+    ["NorthWest", "nw"],
+    ["NorthEast", "ne"],
+    ["SouthWest", "sw"],
+    ["SouthEast", "se"],
+  ];
+  return (
+    <div className="rzones" aria-hidden>
+      {zones.map(([dir, cls]) => (
+        <div
+          key={dir}
+          className={`rz rz--${cls}`}
+          onMouseDown={(ev: ReactMouseEvent) => {
+            ev.preventDefault();
+            void getCurrentWindow().startResizeDragging(dir);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+type CaptionRect = [number, number, number, number];
+
+/**
+ * 自绘标题栏的原生命中区：量出顶栏空白段与最大化按钮后下发，
+ * Windows 的 WndProc 据此返回 HTCAPTION / HTMAXBUTTON，
+ * 于是系统拖动、双击最大化、Win11 贴靠布局都走原生路径。
+ */
+function useCaptionHitTest(signature: string) {
+  useEffect(() => {
+    if (!IS_TAURI || IS_MAC) return;
+    let raf = 0;
+    let timer = 0;
+    let last = "";
+    const measure = () => {
+      const bar = document.querySelector<HTMLElement>(".topbar");
+      if (!bar) return;
+      const rect = bar.getBoundingClientRect();
+      if (rect.height <= 0) return;
+      const scale = window.devicePixelRatio || 1;
+      const mid = Math.round(rect.top + rect.height / 2);
+      const from = Math.round(rect.left + 4);
+      const to = Math.round(rect.right - 4);
+      const top = Math.round(rect.top + 4);
+      const height = Math.round(rect.height - 8);
+      // 顶栏是单行布局：按 4px 步长采样中线，连续落在顶栏空白处的一段就是可拖动区。
+      const blocked = (el: Element | null): boolean =>
+        !el ||
+        !bar.contains(el) ||
+        !!el.closest("button,input,select,textarea,a,[role='button'],.searchbox");
+      const spans: CaptionRect[] = [];
+      let start = -1;
+      for (let x = from; x < to; x += 4) {
+        const free = !blocked(document.elementFromPoint(x, mid));
+        if (free && start < 0) start = x;
+        if (!free && start >= 0) {
+          spans.push([start, top, x - start, height]);
+          start = -1;
+        }
+      }
+      if (start >= 0) spans.push([start, top, to - start, height]);
+      const maxBtn = document.querySelector<HTMLElement>(".wincontrols .wc:nth-child(2)");
+      const box = maxBtn?.getBoundingClientRect();
+      const maxRect: CaptionRect | null =
+        box && box.width > 0
+          ? [Math.round(box.left), Math.round(box.top), Math.round(box.width), Math.round(box.height)]
+          : null;
+      const key = JSON.stringify([spans, maxRect, scale]);
+      if (key === last) return;
+      last = key;
+      void setCaptionRegions(spans, maxRect, scale).catch(() => {});
+    };
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    };
+    const delayed = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(schedule, 160);
+    };
+    schedule();
+    // 字体/图标加载会移动横向位置，稍后再量一次
+    const settle = window.setTimeout(schedule, 500);
+    const un = getCurrentWindow().onResized(delayed);
+    window.addEventListener("resize", delayed);
+    const observer = new ResizeObserver(delayed);
+    const bar = document.querySelector(".topbar");
+    if (bar) observer.observe(bar);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      window.clearTimeout(settle);
+      window.removeEventListener("resize", delayed);
+      observer.disconnect();
+      void un.then((off) => off()).catch(() => {});
+    };
+  }, [signature]);
+}
+
+/** 最大化按钮落在 HTMAXBUTTON 区时 DOM 收不到鼠标事件，用 Rust 转发的事件补悬停态。 */
+function useCaptionHover(): boolean {
+  const [hover, setHover] = useState(false);
+  useEffect(() => {
+    if (!IS_TAURI || IS_MAC) return;
+    const un = listen<{ hover: boolean }>("shellora://caption", (ev) => setHover(!!ev.payload?.hover));
+    return () => {
+      void un.then((off) => off()).catch(() => {});
+    };
+  }, []);
+  return hover;
+}
 
 export default function App() {
+  const [maximized, toggleMaximize] = useWindowMaximized();
+  const maxHover = useCaptionHover();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [jumps, setJumps] = useState<JumpForm[]>([]);
   const [probe, setProbe] = useState<SecretProbeDto | null>(null);
@@ -156,7 +380,6 @@ export default function App() {
   const [theme, setTheme] = useState<UiTheme>(() => loadUiTheme(window.localStorage));
   const [appVersion, setAppVersion] = useState("");
   const [view, setView] = useState<View>(previewView === "connect" ? "connect" : "files");
-  const [terminalOpen, setTerminalOpen] = useState(previewTerminal);
   const [railTab, setRailTab] = useState<RailTab>("all");
   const [railQuery, setRailQuery] = useState("");
   const [railCollapsed, setRailCollapsed] = useState<boolean>(loadRailCollapsed);
@@ -195,10 +418,9 @@ export default function App() {
   useEffect(() => {
     let stored = 0;
     try {
-      stored =
-        Number(window.localStorage.getItem(`${PANEL_WIDTH_KEY}:${activeKey || "default"}`)) ||
-        Number(window.localStorage.getItem(PANEL_WIDTH_KEY)) ||
-        0;
+      // 有会话时用该会话的宽度；无会话（刚启动）时用最后一次使用的宽度
+      const key = activeKey ? `${PANEL_WIDTH_KEY}:${activeKey}` : PANEL_WIDTH_KEY;
+      stored = Number(window.localStorage.getItem(key)) || 0;
     } catch {
       stored = 0;
     }
@@ -229,10 +451,10 @@ export default function App() {
       return;
     }
     try {
-      window.localStorage.setItem(
-        `${PANEL_WIDTH_KEY}:${activeKey || "default"}`,
-        String(Math.round(panelWidth)),
-      );
+      const w = String(Math.round(panelWidth));
+      window.localStorage.setItem(`${PANEL_WIDTH_KEY}:${activeKey || "default"}`, w);
+      // 同时留一份全局值：重启后没有活动会话时用它恢复上次宽度
+      window.localStorage.setItem(PANEL_WIDTH_KEY, w);
     } catch {
       /* 隐私模式忽略 */
     }
@@ -747,6 +969,9 @@ export default function App() {
 
   const activeTab = tabs.find((t) => t.key === activeKey) ?? null;
   const activeLabel = activeTab?.label ?? "";
+
+  // 自绘标题栏命中区：标签增删、视图/主题/最大化变化后重新量测
+  useCaptionHitTest([tabs.map((t) => t.key).join(","), view, railCollapsed, maximized, theme].join("|"));
   const query = railQuery.trim().toLowerCase();
   const savedRows = connections.filter(
     (row) =>
@@ -769,9 +994,25 @@ export default function App() {
     ? `${activeTab.label} · ${STATE_TEXT[activeTab.state.state] ?? activeTab.state.state}`
     : "无活动会话";
 
+  const onTitleBarMouseDown = (ev: ReactMouseEvent) => {
+    if (!IS_TAURI || ev.button !== 0) return;
+    const el = ev.target as HTMLElement;
+    if (el.closest("button,input,select,textarea,a,[role='button']")) return;
+    // 系统拖动会接管后续鼠标事件，双击的第二次 mousedown 只能在进入拖动前判断
+    if (ev.detail === 2) {
+      ev.preventDefault();
+      toggleMaximize();
+      return;
+    }
+    void getCurrentWindow().startDragging();
+  };
+
   return (
-    <div className={resizing ? "app app--next app--resizing" : "app app--next"}>
-      <header className="topbar">
+    <div className={["app", "app--next", resizing ? "app--resizing" : "", maximized ? "app--max" : "", IS_MAC ? "app--mac" : ""].filter(Boolean).join(" ")}>
+      <header
+        className="topbar"
+        onMouseDown={onTitleBarMouseDown}
+      >
         <div className="brandmark">
           <img src={theme === "dark" ? brandDark : brandLight} alt="" draggable={false} />
         </div>
@@ -786,11 +1027,8 @@ export default function App() {
           </button>
           <button
             type="button"
-            className={view === "files" && terminalOpen ? "navpill on" : "navpill"}
-            onClick={() => {
-              setView("files");
-              setTerminalOpen(true);
-            }}
+            className={view === "files" ? "navpill on" : "navpill"}
+            onClick={() => setView("files")}
           >
             <Icon name="terminal" /> Terminal
           </button>
@@ -811,7 +1049,7 @@ export default function App() {
           aria-pressed={railCollapsed}
           onClick={() => setRailCollapsed((prev) => !prev)}
         >
-          <Icon name={railCollapsed ? "chevronRight" : "panel"} />
+          <Icon name="sidebar" />
         </button>
 
         <div className="searchbox">
@@ -824,20 +1062,10 @@ export default function App() {
           />
           <kbd>Ctrl K</kbd>
         </div>
-        <UpdateButton />
-        <button
-          type="button"
-          className="iconbtn"
-          title={theme === "light" ? "切换到深色主题" : "切换到浅色主题"}
-          onClick={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
-        >
-          <Icon name={theme === "light" ? "moon" : "sun"} />
-        </button>
         <div className="avatar">TZ</div>
-      </header>
 
-      {/* 34px 会话条：会话不再占用 248px 常驻侧栏，会话库收进按需浮层 */}
-      <div className="sessionbar">
+        {/* 会话条已并入顶栏：品牌 / 标签 / 传输 / 文件 / 主题在同一行 */}
+        <div className="sessionbar sessionbar--inline">
         <button
           type="button"
           className={railCollapsed ? "sb-toggle" : "sb-toggle on"}
@@ -846,7 +1074,7 @@ export default function App() {
           aria-pressed={!railCollapsed}
           onClick={() => setRailCollapsed((prev) => !prev)}
         >
-          <Icon name="panel" />
+          <Icon name="sidebar" />
         </button>
 
         <div className="sb-tabs" role="tablist" aria-label="会话">
@@ -906,8 +1134,9 @@ export default function App() {
 
         <button
           type="button"
-          className={panelOpen ? "sb-btn on" : "sb-btn"}
+          className={panelOpen ? "sb-btn sb-btn--icon on" : "sb-btn sb-btn--icon"}
           title="文件面板 (Ctrl+Shift+E)"
+          aria-label="文件面板"
           aria-expanded={panelOpen}
           onClick={() => {
             setView("files");
@@ -921,30 +1150,44 @@ export default function App() {
         {panelOpen ? (
           <button
             type="button"
-            className="sb-btn"
+            className="sb-btn sb-btn--icon"
             title={panelLayout === "push" ? "当前：挤压终端（Alt+P 切换为覆盖）" : "当前：覆盖终端（Alt+P 切换为挤压）"}
+            aria-label={panelLayout === "push" ? "当前挤压：切换为覆盖终端" : "当前覆盖：切换为挤压终端"}
+            aria-pressed={panelLayout === "push"}
             onClick={() => setPanelLayout((prev) => (prev === "push" ? "overlay" : "push"))}
           >
-            <Icon name="panel" />
+            <Icon name={panelLayout === "push" ? "columns" : "layers"} />
             <span>{panelLayout === "push" ? "挤压" : "覆盖"}</span>
           </button>
         ) : null}
 
         <button
           type="button"
-          className={view === "connect" ? "sb-btn on" : "sb-btn"}
+          className={view === "connect" ? "sb-btn sb-btn--icon on" : "sb-btn sb-btn--icon"}
           title="新建连接"
+          aria-label="新建连接"
           onClick={() => setView(view === "connect" ? "files" : "connect")}
         >
           <Icon name="plus" />
           <span>连接</span>
         </button>
-      </div>
+        </div>
+
+        <UpdateButton />
+        <button
+          type="button"
+          className="iconbtn"
+          title={theme === "light" ? "切换到深色主题" : "切换到浅色主题"}
+          onClick={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+        >
+          <Icon name={theme === "light" ? "moon" : "sun"} />
+        </button>
+        <WindowControls maximized={maximized} onToggle={toggleMaximize} hover={maxHover} />
+      </header>
 
       <div
         className={[
           "shellbody",
-          terminalOpen && view === "files" ? "shellbody--with-rail" : "",
           railCollapsed ? "shellbody--mini" : "",
         ]
           .filter(Boolean)
@@ -1629,7 +1872,7 @@ export default function App() {
             </div>
           <>
             <aside
-              className="drawer"
+              className={panelWidth && panelWidth < 420 ? "drawer drawer--compact" : "drawer"}
               aria-label="文件面板"
               aria-hidden={panelOpen ? "false" : "true"}
             >
@@ -1782,7 +2025,7 @@ export default function App() {
                       <TerminalPane
                         key={tab.key}
                         input={tab.input}
-                        active={tab.key === activeKey && terminalOpen}
+                        active={tab.key === activeKey}
                         tabIndex={index + 1}
                         onStateChange={(next) => patchTabState(tab.key, next)}
                         onTabId={(tabId) => patchTabId(tab.key, tabId)}
@@ -1793,7 +2036,6 @@ export default function App() {
                         }
                         onOpenFiles={() => {
                           setView("files");
-                          setTerminalOpen(false);
                         }}
                       />
                     ))}
@@ -1803,7 +2045,7 @@ export default function App() {
           </>
         </main>
 
-        {terminalOpen && view === "files" ? (
+        {view === "files" ? (
           <aside className="rightrail">
             <div className="scard">
               <div className="sh">
@@ -1979,6 +2221,8 @@ export default function App() {
           </div>
         </div>
       ) : null}
+
+      <ResizeHandles enabled={!maximized} />
     </div>
   );
 }

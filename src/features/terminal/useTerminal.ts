@@ -107,8 +107,8 @@ export function useTerminal(
     const theme = themeById(optionsRef.current?.themeId);
     const term = new Terminal({
       fontFamily: '"Cascadia Mono", Consolas, "Courier New", monospace',
-      fontSize: 14,
-      lineHeight: 1.2,
+      fontSize: 15,
+      lineHeight: 1.35,
       cursorBlink: true,
       allowProposedApi: true,
       macOptionIsMeta: true,
