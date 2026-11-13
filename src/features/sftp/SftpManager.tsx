@@ -40,6 +40,7 @@ import type {
   TreeOptions,
 } from "../../lib/ipc/types";
 import { FilePane, type PaneSide, formatSize } from "./FilePane";
+import { tr } from "../../i18n";
 
 const PAGE_SIZE = 500;
 
@@ -141,15 +142,15 @@ function formatEta(secs: number | null): string {
   return `${Math.floor(secs / 60)}m ${Math.round(secs % 60)}s`;
 }
 
-const STATE_LABEL: Record<TransferState, string> = {
-  queued: "排队中",
-  running: "传输中",
-  paused: "已暂停",
-  conflict: "目标已存在",
-  done: "已完成",
-  failed: "失败",
-  cancelled: "已取消",
-  skipped: "已跳过",
+const STATE_LABEL: Record<TransferState, () => string> = {
+  queued: () => tr("排队中"),
+  running: () => tr("传输中"),
+  paused: () => tr("已暂停"),
+  conflict: () => tr("目标已存在"),
+  done: () => tr("已完成"),
+  failed: () => tr("失败"),
+  cancelled: () => tr("已取消"),
+  skipped: () => tr("已跳过"),
 };
 
 const DEFAULT_TREE_OPTIONS: TreeOptions = {
@@ -382,7 +383,7 @@ export function SftpManager({
       try {
         const ids = await done;
         setOrder((prev) => [...prev, ...ids.filter((id) => !prev.includes(id))]);
-        setNotice(`已入队 ${ids.length} 个任务（默认并发 2）`);
+        setNotice(tr("已入队 {n} 个任务（默认并发 2）", { n: ids.length }));
       } catch (err) {
         setNotice(errorText(err));
       }
@@ -396,7 +397,7 @@ export function SftpManager({
 
   const transferItems = (side: PaneSide, files: DirEntry[], targetDir: string) => {
     if (!tabId) {
-      setNotice("远端会话未就绪：先打开一个连接");
+      setNotice(tr("远端会话未就绪：先打开一个连接"));
       return;
     }
     const direction: "upload" | "download" = side === "local" ? "upload" : "download";
@@ -466,10 +467,10 @@ export function SftpManager({
     setOpBusy(true);
     try {
       await fn();
-      setNotice(`${label}成功`);
+      setNotice(tr("{label}成功", { label }));
       refreshActive();
     } catch (err) {
-      setNotice(`${label}失败：${errorText(err)}`);
+      setNotice(tr("{label}失败：{err}", { label, err: errorText(err) }));
     } finally {
       setOpBusy(false);
     }
@@ -477,7 +478,7 @@ export function SftpManager({
 
   const startCreate = () => {
     setEditing({ mode: "create" });
-    setDraft("新建目录");
+    setDraft(tr("新建目录"));
   };
 
   const startRename = () => {
@@ -496,18 +497,18 @@ export function SftpManager({
       if (!tabId) return;
       const to = joinRemote(remote.path || "/", name);
       if (current.mode === "create") {
-        void runOp("新建目录", () => remoteMkdir(tabId, to));
+        void runOp(tr("新建目录"), () => remoteMkdir(tabId, to));
       } else if (to !== current.entry.path) {
-        void runOp("重命名", () => remoteRename(tabId, current.entry.path, to));
+        void runOp(tr("重命名"), () => remoteRename(tabId, current.entry.path, to));
       }
       return;
     }
     if (!local.path) return;
     const to = joinLocal(local.path, name);
     if (current.mode === "create") {
-      void runOp("新建目录", () => localMkdir(to));
+      void runOp(tr("新建目录"), () => localMkdir(to));
     } else if (to !== current.entry.path) {
-      void runOp("重命名", () => localRename(current.entry.path, to));
+      void runOp(tr("重命名"), () => localRename(current.entry.path, to));
     }
   };
 
@@ -520,13 +521,18 @@ export function SftpManager({
     if (!canDelete) return;
     const remoteTab = paneView === "remote" ? tabId : null;
     if (paneView === "remote" && !remoteTab) return;
-    const side = paneView === "remote" ? "远端" : "本机";
+    const side = paneView === "remote" ? tr("远端") : tr("本机");
     const names = selItems.map((e) => e.name).join("、");
-    const hint = selItems.some((e) => e.isDir) ? "\n\n目录必须为空才能删除。" : "";
+    const hint = selItems.some((e) => e.isDir) ? `\n\n${tr("目录必须为空才能删除。")}` : "";
     const extra =
-      paneView === "local" ? "\n\n本机文件会被直接删除，不进回收站。" : hint;
-    if (!window.confirm(`删除${side} ${selItems.length} 项？\n${names}${extra}`)) return;
-    void runOp("删除", async () => {
+      paneView === "local" ? `\n\n${tr("本机文件会被直接删除，不进回收站。")}` : hint;
+    if (
+      !window.confirm(
+        `${tr("删除{side} {n} 项？", { side, n: selItems.length })}\n${names}${extra}`,
+      )
+    )
+      return;
+    void runOp(tr("删除"), async () => {
       for (const item of selItems) {
         if (remoteTab) await remoteRemove(remoteTab, item.path, item.isDir);
         else if (paneView === "local") await localRemove(item.path, item.isDir);
@@ -576,12 +582,13 @@ export function SftpManager({
   };
 
   const menuDelete = (side: PaneSide, entry: DirEntry) => {
-    const sideName = side === "remote" ? "远端" : "本机";
-    const extra = side === "local" ? "\n\n本机文件会被直接删除，不进回收站。" : "";
-    if (!window.confirm(`删除${sideName}「${entry.name}」？${extra}`)) return;
-    void runOp("删除", async () => {
+    const sideName = side === "remote" ? tr("远端") : tr("本机");
+    const extra = side === "local" ? `\n\n${tr("本机文件会被直接删除，不进回收站。")}` : "";
+    if (!window.confirm(`${tr("删除{side}「{name}」？", { side: sideName, name: entry.name })}${extra}`))
+      return;
+    void runOp(tr("删除"), async () => {
       if (side === "remote") {
-        if (!tabId) throw new Error("会话未就绪");
+        if (!tabId) throw new Error(tr("会话未就绪"));
         await remoteRemove(tabId, entry.path, entry.isDir);
         setSelectedRemote(new Set());
       } else {
@@ -593,8 +600,8 @@ export function SftpManager({
 
   const menuCopyPath = (entry: DirEntry) => {
     void navigator.clipboard.writeText(entry.path).then(
-      () => setNotice("已复制路径"),
-      () => setNotice("复制失败：剪贴板不可用"),
+      () => setNotice(tr("已复制路径")),
+      () => setNotice(tr("复制失败：剪贴板不可用")),
     );
   };
 
@@ -633,7 +640,7 @@ export function SftpManager({
       const paths = detail?.paths?.filter(Boolean) ?? [];
       if (!paths.length) return;
       if (paneView !== "remote") {
-        setNotice("切换到远端窗格后再拖入即可上传");
+        setNotice(tr("切换到远端窗格后再拖入即可上传"));
         return;
       }
       const stats = await Promise.all(
@@ -655,7 +662,7 @@ export function SftpManager({
       }));
       if (items.length > 0) {
         void enqueue(items);
-        setNotice(`已入队 ${items.length} 个文件`);
+        setNotice(tr("已入队 {n} 个文件", { n: items.length }));
       }
       if (dirs.length > 0) {
         setTreePrompt({
@@ -684,7 +691,7 @@ export function SftpManager({
     if (!prompt) return;
     if (!tabId) {
       setTreePrompt(null);
-      setNotice("远端会话未就绪：先打开一个连接");
+      setNotice(tr("远端会话未就绪：先打开一个连接"));
       return;
     }
     setTreePrompt(null);
@@ -714,7 +721,12 @@ export function SftpManager({
       }
     }
     setNotice(
-      `递归入队 ${prompt.items.length} 个目录：${files} 个文件 / ${dirs} 个新目录 / ${formatSize(bytes, false)}`,
+      tr("递归入队 {n} 个目录：{files} 个文件 / {dirs} 个新目录 / {size}", {
+        n: prompt.items.length,
+        files,
+        dirs,
+        size: formatSize(bytes, false),
+      }),
     );
   };
 
@@ -808,7 +820,7 @@ export function SftpManager({
     <FilePane
       key="local"
       side="local"
-      title="本地磁盘"
+      title={tr("本地磁盘")}
       path={local.path}
       entries={local.entries}
       selected={selectedLocal}
@@ -839,7 +851,7 @@ export function SftpManager({
       total={remote.total}
       note={remote.note}
       idle={!tabId}
-      idleHint="从左侧会话库打开一个连接，远端目录会在这里显示。"
+      idleHint={tr("从左侧会话库打开一个连接，远端目录会在这里显示。")}
       onNavigate={(path) => {
         setSelectedRemote(new Set());
         navigateRemote(path);
@@ -854,97 +866,103 @@ export function SftpManager({
   );
 
   return (
-    <section className="files" aria-label="SFTP 双栏工作站">
+    <section className="files" aria-label={tr("SFTP 双栏工作站")}>
       <header className="filehead">
-        <h2>Files</h2>
+        <h2>{tr("文件")}</h2>
         <span className="hostchip">
           <span className="dot" />
           {label}
         </span>
-        <div className="seg seg--pane" role="tablist" aria-label="窗格">
+        <div className="seg seg--pane" role="tablist" aria-label={tr("窗格")}>
           <button
             type="button"
             className={paneView === "remote" ? "on" : ""}
             onClick={() => setPaneView("remote")}
           >
-            远端
+            {tr("远端")}
           </button>
           <button
             type="button"
             className={paneView === "local" ? "on" : ""}
             onClick={() => setPaneView("local")}
           >
-            本机
+            {tr("本机")}
           </button>
         </div>
         <span className="grow" />
         {notice ? <span className="sftp-notice">{notice}</span> : null}
         <button type="button" className="btn btn--ghost" onClick={refreshQueue}>
-          <Icon name="refresh" /> 刷新队列
+          <Icon name="refresh" /> <span className="btn__t">{tr("刷新队列")}</span>
         </button>
         {onOpenTerminal ? (
           <button type="button" className="btn btn--ghost" onClick={onOpenTerminal}>
-            <Icon name="terminal" /> 终端
+            <Icon name="terminal" /> <span className="btn__t">{tr("终端")}</span>
           </button>
         ) : null}
       </header>
 
-      <div className="dops" role="toolbar" aria-label="文件操作">
+      <div className="dops" role="toolbar" aria-label={tr("文件操作")}>
         <button
           type="button"
           className="dop dop--primary"
-          title="上传选中的本机文件 (Alt+U)"
+          title={tr("上传选中的本机文件 (Alt+U)")}
           disabled={selectedLocal.size === 0 || !remote.path || opBusy}
           onClick={uploadSelected}
         >
-          <Icon name="upload" /><span className="dop__t">上传</span>
+          <Icon name="upload" /><span className="dop__t">{tr("上传")}</span>
         </button>
         <button
           type="button"
           className="dop"
-          title="新建目录 (Alt+N)"
+          title={tr("新建目录 (Alt+N)")}
           disabled={!canCreate}
           onClick={startCreate}
         >
-          <Icon name="plus" /><span className="dop__t">新建目录</span>
+          <Icon name="plus" /><span className="dop__t">{tr("新建目录")}</span>
         </button>
         <button
           type="button"
           className="dop"
-          title="下载选中的远端文件"
+          title={tr("下载选中的远端文件")}
           disabled={selectedRemote.size === 0 || !tabId || opBusy}
           onClick={downloadSelected}
         >
-          <Icon name="download" /><span className="dop__t">下载</span>
+          <Icon name="download" /><span className="dop__t">{tr("下载")}</span>
         </button>
         <button
           type="button"
           className="dop"
-          title="重命名选中的项 (F2)"
+          title={tr("重命名选中的项 (F2)")}
           disabled={!canRename}
           onClick={startRename}
         >
-          <Icon name="pencil" /><span className="dop__t">重命名</span>
+          <Icon name="pencil" /><span className="dop__t">{tr("重命名")}</span>
         </button>
         <button
           type="button"
           className="dop dop--danger"
-          title="删除选中的项 (Delete)"
+          title={tr("删除选中的项 (Delete)")}
           disabled={!canDelete}
           onClick={deleteSelected}
         >
-          <Icon name="trash" /><span className="dop__t">删除</span>
+          <Icon name="trash" /><span className="dop__t">{tr("删除")}</span>
         </button>
         <span className="grow" />
         <span className="dops__sel">
-          {selItems.length ? `已选 ${selItems.length}` : paneView === "remote" ? "未选择" : "本机窗格"}
+          {selItems.length
+            ? tr("已选 {n}", { n: selItems.length })
+            : paneView === "remote"
+              ? tr("未选择")
+              : tr("本机窗格")}
         </span>
       </div>
 
       {editing ? (
         <div className="dedit">
           <Icon name={editing.mode === "create" ? "folder" : "pencil"} />
-          <span className="dedit__label">{editing.mode === "create" ? "新目录" : "重命名为"}</span>
+          <span className="dedit__label">
+            {editing.mode === "create" ? tr("新目录") : tr("重命名为")}
+          </span>
           <input
             autoFocus
             value={draft}
@@ -958,24 +976,24 @@ export function SftpManager({
                 cancelEdit();
               }
             }}
-            aria-label={editing.mode === "create" ? "新目录名称" : "新名称"}
+            aria-label={editing.mode === "create" ? tr("新目录名称") : tr("新名称")}
           />
           <button type="button" className="dop dop--primary" onClick={submitEdit}>
-            确定
+            {tr("确定")}
           </button>
           <button type="button" className="dop" onClick={cancelEdit}>
-            取消
+            {tr("取消")}
           </button>
         </div>
       ) : null}
 
       <div className="fsp fsp--single">
         <div className={paneView === "local" ? "pane-slot on" : "pane-slot"}>{localPane}</div>
-        <div className="axis" aria-label="传输方向">
+        <div className="axis" aria-label={tr("传输方向")}>
           <button
             type="button"
             className="ab hot"
-            title={swapped ? "下载选中项" : "上传选中项"}
+            title={swapped ? tr("下载选中项") : tr("上传选中项")}
             disabled={swapped ? selectedRemote.size === 0 || !tabId : selectedLocal.size === 0 || !tabId}
             onClick={() =>
               onTransferSelected(
@@ -991,16 +1009,16 @@ export function SftpManager({
           <button
             type="button"
             className="ab"
-            title="交换左右窗格"
+            title={tr("交换左右窗格")}
             onClick={() => setSwapped((prev) => !prev)}
           >
             <Icon name="sync" />
           </button>
-          <span className="lbl">SWAP</span>
+          <span className="lbl">{tr("交换")}</span>
           <button
             type="button"
             className="ab"
-            title={swapped ? "上传选中项" : "下载选中项"}
+            title={swapped ? tr("上传选中项") : tr("下载选中项")}
             disabled={swapped ? selectedLocal.size === 0 || !tabId : selectedRemote.size === 0 || !tabId}
             onClick={() =>
               onTransferSelected(
@@ -1018,24 +1036,27 @@ export function SftpManager({
       </div>
       <section
         className={queueOpen ? "queue2" : "queue2 queue2--folded"}
-        aria-label="传输队列"
+        aria-label={tr("传输队列")}
       >
         <header className="qhead2">
-          <span className="ttl">Transfers</span>
+          <span className="ttl">{tr("传输队列")}</span>
           <span className="cnt">
-            {running.length + queued} 进行中 · {doneCount} 已完成
+            {tr("{active} 进行中 · {done} 已完成", {
+              active: running.length + queued,
+              done: doneCount,
+            })}
           </span>
           <span className="spd">
             <Icon name="activity" />
             <b>{totalMbps.toFixed(2)} MiB/s</b>
           </span>
-          <button type="button" className="qb" title="刷新" onClick={refreshQueue}>
+          <button type="button" className="qb" title={tr("刷新")} onClick={refreshQueue}>
             <Icon name="refresh" />
           </button>
           <button
             type="button"
             className="qb"
-            title={queueOpen ? "折叠传输队列" : "展开传输队列"}
+            title={queueOpen ? tr("折叠传输队列") : tr("展开传输队列")}
             aria-expanded={queueOpen}
             onClick={() => setQueueOpen((open) => !open)}
           >
@@ -1045,7 +1066,7 @@ export function SftpManager({
 
         {groupOrder.length === 0 && looseTasks.length === 0 ? (
           <p className="qempty">
-            把左侧本地文件/目录拖到右侧远端目录即上传，反向即下载；Ctrl/Shift 可多选，空白处拖动可框选。
+            {tr("把左侧本地文件/目录拖到右侧远端目录即上传，反向即下载；Ctrl/Shift 可多选，空白处拖动可框选。")}
           </p>
         ) : (
           <ul className="qlist">
@@ -1077,7 +1098,11 @@ export function SftpManager({
                   <span className="nm">
                     <span className="n ell">{group.label}/</span>
                     <span className="p">
-                      {group.filesDone}/{group.filesTotal} 文件 · {group.policy} · 递归
+                      {tr("{done}/{total} 文件 · {policy} · 递归", {
+                        done: group.filesDone,
+                        total: group.filesTotal,
+                        policy: group.policy,
+                      })}
                     </span>
                   </span>
                   <span className="bar">
@@ -1085,17 +1110,17 @@ export function SftpManager({
                   </span>
                   <span className="pct">{Math.round(percent)}%</span>
                   <span className="rate">{group.mbps.toFixed(2)} MiB/s</span>
-                  <span className="eta">ETA {formatEta(group.etaSecs)}</span>
-                  {group.state === "conflict" ? <span className="qbadge warn">CONFLICT</span> : null}
+                  <span className="eta">{tr("剩余 {eta}", { eta: formatEta(group.etaSecs) })}</span>
+                  {group.state === "conflict" ? <span className="qbadge warn">{tr("冲突")}</span> : null}
                   {group.errorCode ? <span className="qbadge err">{group.errorCode}</span> : null}
-                  <button type="button" className="qa" title="详情" onClick={() => toggleGroup(gid)}>
+                  <button type="button" className="qa" title={tr("详情")} onClick={() => toggleGroup(gid)}>
                     <Icon name={open ? "chevronUp" : "chevronDown"} />
                   </button>
                   {canPause ? (
                     <button
                       type="button"
                       className="qa"
-                      title="暂停"
+                      title={tr("暂停")}
                       onClick={() => action(transferPauseGroup(gid))}
                     >
                       <Icon name="pause" />
@@ -1105,7 +1130,7 @@ export function SftpManager({
                     <button
                       type="button"
                       className="qa"
-                      title="继续"
+                      title={tr("继续")}
                       onClick={() => action(transferResumeGroup(gid))}
                     >
                       <Icon name="play" />
@@ -1115,7 +1140,7 @@ export function SftpManager({
                     <button
                       type="button"
                       className="qa"
-                      title="取消"
+                      title={tr("取消")}
                       onClick={() => action(transferCancelGroup(gid))}
                     >
                       <Icon name="x" />
@@ -1123,27 +1148,27 @@ export function SftpManager({
                   ) : null}
                   {group.state === "conflict" ? (
                     <div className="qgroup__policy">
-                      <span>整组处理：</span>
+                      <span>{tr("整组处理：")}</span>
                       <button
                         type="button"
                         className="abtn"
                         onClick={() => action(transferResolveGroup(gid, "overwrite"))}
                       >
-                        全部覆盖
+                        {tr("全部覆盖")}
                       </button>
                       <button
                         type="button"
                         className="abtn"
                         onClick={() => action(transferResolveGroup(gid, "skip"))}
                       >
-                        全部跳过
+                        {tr("全部跳过")}
                       </button>
                       <button
                         type="button"
                         className="abtn"
                         onClick={() => action(transferResolveGroup(gid, "rename"))}
                       >
-                        全部重命名
+                        {tr("全部重命名")}
                       </button>
                     </div>
                   ) : null}
@@ -1157,7 +1182,7 @@ export function SftpManager({
                               : basename(task.remotePath)}
                           </span>
                           <span className={`qbadge ${task.state === "done" ? "ok" : ""}`}>
-                            {STATE_LABEL[task.state]}
+                            {STATE_LABEL[task.state]()}
                           </span>
                           <span className="qchild__size">
                             {formatSize(task.transferred, false)} /{" "}
@@ -1214,17 +1239,17 @@ export function SftpManager({
                   <span className="nm">
                     <span className="n ell">{name}</span>
                     <span className="p">
-                      {task.direction === "upload"
-                        ? `LOCAL → ${basename(task.remotePath) ? "REMOTE" : ""}`
-                        : "REMOTE → LOCAL"}{" "}
-                      · {STATE_LABEL[task.state]}
+                      <span className="dirchip">
+                        {tr(task.direction === "upload" ? "本机 → 远端" : "远端 → 本机")} ·{" "}
+                      </span>
+                      {STATE_LABEL[task.state]()}
                       {task.resumedBytes > 0
-                        ? ` · 续传 ${formatSize(task.resumedBytes, false)}`
+                        ? ` · ${tr("续传 {size}", { size: formatSize(task.resumedBytes, false) })}`
                         : ""}
                     </span>
                   </span>
                   {task.state === "conflict" ? (
-                    <span className="qbadge warn">CONFLICT</span>
+                    <span className="qbadge warn">{tr("冲突")}</span>
                   ) : null}
                   {task.errorCode ? <span className="qbadge err">{task.errorCode}</span> : null}
                   <span className="bar">
@@ -1240,13 +1265,13 @@ export function SftpManager({
                     {task.state === "running" ? `${task.mbps.toFixed(2)} MiB/s` : "—"}
                   </span>
                   <span className="eta">
-                    {task.state === "done" ? "完成" : `ETA ${formatEta(task.etaSecs)}`}
+                    {task.state === "done" ? tr("完成") : tr("剩余 {eta}", { eta: formatEta(task.etaSecs) })}
                   </span>
                   {canPause ? (
                     <button
                       type="button"
                       className="qa"
-                      title="暂停"
+                      title={tr("暂停")}
                       onClick={() => action(transferPause(task.id))}
                     >
                       <Icon name="pause" />
@@ -1256,7 +1281,7 @@ export function SftpManager({
                     <button
                       type="button"
                       className="qa"
-                      title="继续"
+                      title={tr("继续")}
                       onClick={() => action(transferResume(task.id))}
                     >
                       <Icon name="play" />
@@ -1266,7 +1291,7 @@ export function SftpManager({
                     <button
                       type="button"
                       className="qa"
-                      title="取消"
+                      title={tr("取消")}
                       onClick={() => action(transferCancel(task.id))}
                     >
                       <Icon name="x" />
@@ -1280,14 +1305,14 @@ export function SftpManager({
       </section>
 
       {treePrompt ? (
-        <div className="conflict" role="alertdialog" aria-modal="true" aria-label="递归传输目录">
+        <div className="conflict" role="alertdialog" aria-modal="true" aria-label={tr("递归传输目录")}>
           <div className="confdlg2">
             <header className="cfhead2">
               <span className="icwrap">
                 <Icon name="folder" />
               </span>
               <div>
-                <h3>递归传输目录</h3>
+                <h3>{tr("递归传输目录")}</h3>
                 <p>
                   {treePrompt.items.map((item) => item.name).join("、")} → {treePrompt.destDir}
                 </p>
@@ -1296,7 +1321,7 @@ export function SftpManager({
             <div className="cfbody2">
               <div className="tgrid">
                 <label className="field2">
-                  <span className="lb2">最大深度</span>
+                  <span className="lb2">{tr("最大深度")}</span>
                   <input
                     className="in2"
                     type="number"
@@ -1311,7 +1336,7 @@ export function SftpManager({
                   />
                 </label>
                 <label className="field2">
-                  <span className="lb2">最大文件数</span>
+                  <span className="lb2">{tr("最大文件数")}</span>
                   <input
                     className="in2"
                     type="number"
@@ -1326,7 +1351,7 @@ export function SftpManager({
                   />
                 </label>
                 <label className="field2">
-                  <span className="lb2">冲突策略</span>
+                  <span className="lb2">{tr("冲突策略")}</span>
                   <select
                     className="in2"
                     value={treeOptions.conflictPolicy}
@@ -1337,10 +1362,10 @@ export function SftpManager({
                       }))
                     }
                   >
-                    <option value="ask">逐个询问</option>
-                    <option value="overwrite">整组覆盖</option>
-                    <option value="skip">整组跳过</option>
-                    <option value="rename">整组重命名</option>
+                    <option value="ask">{tr("逐个询问")}</option>
+                    <option value="overwrite">{tr("整组覆盖")}</option>
+                    <option value="skip">{tr("整组跳过")}</option>
+                    <option value="rename">{tr("整组重命名")}</option>
                   </select>
                 </label>
               </div>
@@ -1352,16 +1377,16 @@ export function SftpManager({
                     setTreeOptions((prev) => ({ ...prev, createEmptyDirs: ev.target.checked }))
                   }
                 />
-                创建空目录
+                {tr("创建空目录")}
               </label>
             </div>
             <footer className="cffoot2">
               <span className="grow" />
               <button type="button" className="btn" onClick={() => setTreePrompt(null)}>
-                取消
+                {tr("取消")}
               </button>
               <button type="button" className="btn btn--primary" onClick={() => void confirmTree()}>
-                开始传输
+                {tr("开始传输")}
               </button>
             </footer>
           </div>
@@ -1369,14 +1394,14 @@ export function SftpManager({
       ) : null}
 
       {conflict ? (
-        <div className="conflict" role="alertdialog" aria-modal="true" aria-label="目标已存在">
+        <div className="conflict" role="alertdialog" aria-modal="true" aria-label={tr("目标已存在")}>
           <div className="confdlg2">
             <header className="cfhead2">
               <span className="icwrap">
                 <Icon name="alert" />
               </span>
               <div>
-                <h3>File conflict</h3>
+                <h3>{tr("文件冲突")}</h3>
                 <p className="ell">
                   {conflict.direction === "upload" ? conflict.remotePath : conflict.localPath}
                 </p>
@@ -1448,20 +1473,20 @@ export function SftpManager({
                     {
                       key: "overwrite" as const,
                       icon: "upload",
-                      title: "覆盖",
-                      desc: "用源文件替换目标，保留最新内容",
+                      title: tr("覆盖"),
+                      desc: tr("用源文件替换目标，保留最新内容"),
                     },
                     {
                       key: "skip" as const,
                       icon: "arrowRight",
-                      title: "跳过",
-                      desc: "保留目标文件，不传输本项",
+                      title: tr("跳过"),
+                      desc: tr("保留目标文件，不传输本项"),
                     },
                     {
                       key: "rename" as const,
                       icon: "pencil",
-                      title: "重命名",
-                      desc: "以新名称保存源文件，目标不变",
+                      title: tr("重命名"),
+                      desc: tr("以新名称保存源文件，目标不变"),
                     },
                   ]
                 ).map((opt) => (
@@ -1485,9 +1510,11 @@ export function SftpManager({
                 <input
                   className="ren2"
                   value={renameInput}
-                  placeholder={`留空自动追加 (1) · ${basename(
-                    conflict.direction === "upload" ? conflict.localPath : conflict.remotePath,
-                  )}`}
+                  placeholder={tr("留空自动追加 (1) · {name}", {
+                    name: basename(
+                      conflict.direction === "upload" ? conflict.localPath : conflict.remotePath,
+                    ),
+                  })}
                   onChange={(ev) => setRenameInput(ev.target.value)}
                   onKeyDown={(ev) => {
                     if (ev.key === "Enter") resolve("rename");
@@ -1496,13 +1523,13 @@ export function SftpManager({
               ) : null}
 
               <div className="cfnote">
-                仅处理当前冲突；整组冲突可在队列行内批量覆盖 / 跳过 / 重命名。
+                {tr("仅处理当前冲突；整组冲突可在队列行内批量覆盖 / 跳过 / 重命名。")}
               </div>
 
               <div className="applyrow">
                 <Icon name="shield" />
-                覆盖会立即替换目标文件，此操作不可撤销。
-                <span className="r">{STATE_LABEL[conflict.state]}</span>
+                {tr("覆盖会立即替换目标文件，此操作不可撤销。")}
+                <span className="r">{STATE_LABEL[conflict.state]()}</span>
               </div>
             </div>
 
@@ -1514,18 +1541,18 @@ export function SftpManager({
                   setDismissedConflicts((prev) => new Set(prev).add(conflict.id))
                 }
               >
-                稍后处理
+                {tr("稍后处理")}
               </button>
               <span className="grow" />
               <button type="button" className="btn" onClick={() => resolve("skip")}>
-                跳过
+                {tr("跳过")}
               </button>
               <button
                 type="button"
                 className="btn btn--primary"
                 onClick={() => resolve(choice)}
               >
-                应用
+                {tr("应用")}
               </button>
             </footer>
           </div>
@@ -1558,7 +1585,7 @@ export function SftpManager({
                   }}
                 >
                   <Icon name="download" />
-                  下载到本机
+                  {tr("下载到本机")}
                 </button>
               ) : (
                 <button
@@ -1572,7 +1599,7 @@ export function SftpManager({
                   }}
                 >
                   <Icon name="upload" />
-                  上传到远端
+                  {tr("上传到远端")}
                 </button>
               )}
               <button
@@ -1586,7 +1613,7 @@ export function SftpManager({
                 }}
               >
                 <Icon name="pencil" />
-                重命名
+                {tr("重命名")}
               </button>
               <button
                 type="button"
@@ -1597,7 +1624,7 @@ export function SftpManager({
                 }}
               >
                 <Icon name="plus" />
-                新建目录
+                {tr("新建目录")}
               </button>
               <button
                 type="button"
@@ -1609,7 +1636,7 @@ export function SftpManager({
                 }}
               >
                 <Icon name="copy" />
-                复制路径
+                {tr("复制路径")}
               </button>
               <div className="ctxmenu__sep" />
               <button
@@ -1623,7 +1650,7 @@ export function SftpManager({
                 }}
               >
                 <Icon name="trash" />
-                删除
+                {tr("删除")}
               </button>
             </div>,
             document.body,
@@ -1632,3 +1659,4 @@ export function SftpManager({
     </section>
   );
 }
+

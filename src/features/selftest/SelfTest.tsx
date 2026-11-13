@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ConnStateDto } from "../../lib/ipc/types";
 import { closeTerminal, openDetached } from "../../lib/ipc/commands";
 import { useTerminal } from "../terminal/useTerminal";
+import { tr } from "../../i18n";
 
 const LARGE = { w: 900, h: 620 };
 const FRAME_BUDGET_MS = 1000 / 60;
@@ -284,7 +285,7 @@ export function SelfTest() {
   return (
     <div className="selftest">
       <div className="selftest__bar">
-        <strong>M0 自测</strong>
+        <strong>{tr("M0 自测")}</strong>
         <span>phase={phase}</span>
         <span>frames={s.frames}</span>
         <span>seqGaps={s.seqGaps}</span>
@@ -295,3 +296,4 @@ export function SelfTest() {
     </div>
   );
 }
+

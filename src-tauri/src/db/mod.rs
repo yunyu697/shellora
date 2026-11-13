@@ -14,9 +14,15 @@ use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum DbError {
-    #[error("数据库错误: {0}")]
+    #[error(
+        "{}",
+        crate::i18n::t_args("数据库错误: {error}", &[("error", &.0.to_string())])
+    )]
     Sqlite(#[from] rusqlite::Error),
-    #[error("文件错误: {0}")]
+    #[error(
+        "{}",
+        crate::i18n::t_args("文件错误: {error}", &[("error", &.0.to_string())])
+    )]
     Io(#[from] std::io::Error),
 }
 

@@ -173,3 +173,49 @@ CI：[`\.github/workflows/release.yml`](../.github/workflows/release.yml)，tag 
 **旧品牌产物保留**：改名前的 `SSHTerm_1.0.0_x64_en-US.msi`（`9b17da01…`）与
 `SSHTerm_1.0.0_x64-setup.exe`（`695b0c93…`）仍留在 `bundle` 目录，未删除，便于回溯；
 不在本版发布清单内（见 `manifest-1.0.0.md` 的「旧品牌产物」小节）。
+
+## 8. 发布流程（默认必发）
+
+**规则：出包即发布，不再只把产物留在本地。** 任何一次构建出正式版，都必须完成下列步骤，
+否则视为未发布。
+
+1. 版本号三处同步并校验：`src-tauri/Cargo.toml`、`package.json`、`src-tauri/tauri.conf.json`，
+   `node scripts/check-version.mjs` 必须通过（段值 ≤10 规则见 [../VERSIONING.md](../VERSIONING.md)）。
+2. 构建：`pwsh scripts/build-release.ps1`（含冒烟断言，子进程 BelowNormal、离屏）。
+3. 生成清单：`node scripts/release-manifest.mjs` → `docs/release/manifest-<ver>.json|.md`。
+4. 打 tag 并推送：`git tag -a v<ver> -m "..."` + `git push origin v<ver>`。
+5. 建 Release 并上传资产（**必须包含**）：
+   - `Shellora_<ver>_x64-setup.exe`（NSIS）
+   - `Shellora_<ver>_x64_en-US.msi`（WiX）
+   - `SHA256SUMS`（`<sha256>  <文件名>`，两空格）
+   - `manifest-<ver>.json`
+   - Release 说明：本版做了什么 + 已知限制（macOS/Linux 未实机、Linux 无产物）
+6. 上传后核对：`gh release view v<ver> --json assets` 的 `digest` 必须与本机
+   `Get-FileHash -Algorithm SHA256` 完全一致，不一致则重新上传。
+7. 最新正式版用 `--latest` 接管 `releases/latest`；历史版本补发时**不得**抢 Latest。
+
+## 8.1 pre-release 口径
+
+| 情况 | 是否标 pre-release |
+|---|---|
+| 正式版（版本号无 `-alphaN/-betaN/-rcN` 后缀，冒烟通过） | 否，且最新一个接管 Latest |
+| 预发布（带 `-alphaN`/`-betaN`/`-rcN` 后缀） | 是；即使版本号更大也不接管 Latest |
+| 仅为补齐历史版本而补发的 Release | 否；不带 `--latest`，Latest 保持在最新正式版 |
+| 仅 CI 临时产物 / 未过冒烟 | 不发 Release，只留 Actions artifact |
+
+已有 origin 早于本规则的版本（1.0.4–1.0.8）如补发，按「历史补发」处理。
+
+## 9. 发布历史与断点（2026-11 核查）
+
+| 版本 | tag | Release | 资产 | Latest |
+|---|---|---|---|---|
+| 1.0.0 | 有 | 有 | exe/msi | — |
+| 1.0.1 | 有 | **无** | — | — |
+| 1.0.2 | 有 | 有 | exe/msi/dmg | — |
+| 1.0.3 | 有 | 有 | exe/msi/dmg | 曾为 Latest |
+| 1.0.4–1.0.8 | 无 | **无** | 仅本地产物 | — |
+| 1.0.9 | 有（本地补推） | 已补发 | exe/msi/SHA256SUMS/manifest | 否 |
+| 1.0.10 | 有（本地补推） | 已补发 | exe/msi/SHA256SUMS/manifest | **是** |
+
+断点结论：**从 1.0.4 起只在本地产物、未发 Release**；1.0.9 与 1.0.10 已按本流程补发并核对
+远端 digest。1.0.4–1.0.8 的安装包在本地 `src-tauri/target/release/bundle` 下，可按同流程补发。

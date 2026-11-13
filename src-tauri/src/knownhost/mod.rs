@@ -63,7 +63,12 @@ pub fn verify(
     // 1) 自有信任库：任意一条完全匹配即放行；有记录但都不匹配 → 变更阻断。
     let rows = store
         .list_known_hosts(host, port)
-        .map_err(|e| ErrorDto::internal(format!("读取 known_host 失败：{e}")))?;
+        .map_err(|e| {
+            ErrorDto::internal(crate::i18n::t_args(
+                "读取 known_host 失败：{error}",
+                &[("error", &e.to_string())],
+            ))
+        })?;
     let trusted: Vec<&KnownHostRow> = rows.iter().filter(|r| r.trust > 0).collect();
     if !trusted.is_empty() {
         if let Some(hit) = trusted
@@ -114,15 +119,27 @@ pub fn verify(
     if policy.trust_new {
         store
             .upsert_known_host(host, port, &key_type, &blob, &fp_sha256)
-            .map_err(|e| ErrorDto::internal(format!("写入 known_host 失败：{e}")))?;
+            .map_err(|e| {
+                ErrorDto::internal(crate::i18n::t_args(
+                    "写入 known_host 失败：{error}",
+                    &[("error", &e.to_string())],
+                ))
+            })?;
         tracing::info!(target: "ssh", %host, port, %fp_sha256, "host key trusted (TOFU)");
         return Ok(());
     }
 
     Err(ErrorDto::new(
         ErrorCode::HostKeyUnknown,
-        format!(
-            "首次连接未知主机 {host}:{port}（{key_type}）\nSHA256: {fp_sha256}\nMD5: {fp_md5}"
+        crate::i18n::t_args(
+            "首次连接未知主机 {host}:{port}（{key_type}）\nSHA256: {fp_sha256}\nMD5: {fp_md5}",
+            &[
+                ("host", host),
+                ("port", &port.to_string()),
+                ("key_type", &key_type),
+                ("fp_sha256", &fp_sha256),
+                ("fp_md5", &fp_md5),
+            ],
         ),
     )
     .with_details(json!({
@@ -164,13 +181,18 @@ fn host_key_changed(
         .iter()
         .map(|(t, fp)| format!("{t} {fp}"))
         .collect::<Vec<_>>()
-        .join("；");
+        .join(&crate::i18n::t("；"));
     ErrorDto::new(
         ErrorCode::HostKeyChanged,
-        format!(
-            "警告：主机 {host}:{port} 的主机密钥已变更，可能存在中间人攻击。\n\
-             已信任：{known_desc}\n当前：{key_type} {fp_sha256}\n\
-             已阻断连接；请确认风险后手动删除该主机的信任记录再重连。"
+        crate::i18n::t_args(
+            "警告：主机 {host}:{port} 的主机密钥已变更，可能存在中间人攻击。\n已信任：{known}\n当前：{key_type} {fp_sha256}\n已阻断连接；请确认风险后手动删除该主机的信任记录再重连。",
+            &[
+                ("host", host),
+                ("port", &port.to_string()),
+                ("known", &known_desc),
+                ("key_type", key_type),
+                ("fp_sha256", fp_sha256),
+            ],
         ),
     )
     .with_details(json!({

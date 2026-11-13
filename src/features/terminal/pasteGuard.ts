@@ -1,5 +1,6 @@
 // 粘贴保护：多行/控制字符确认；bracketed paste 包装；选中文本规范化。
 // 纯函数，UI 与单测共用同一判定，避免"弹窗说 3 行、实际发 4 行"。
+import { tr } from "../../i18n";
 
 export interface PasteGuardOptions {
   /** 每次粘贴都确认（设置项 confirm_always） */
@@ -38,13 +39,16 @@ export function analyzePaste(text: string, options?: PasteGuardOptions): PasteAn
   const needsConfirm = Boolean(options?.confirmAlways) || hasNewline || hasControlChar;
 
   const risks: string[] = [];
-  if (hasNewline) risks.push("含回车");
-  if (hasControlChar) risks.push("含控制字符");
-  if (!risks.length && options?.confirmAlways) risks.push("已开启每次确认");
+  if (hasNewline) risks.push(tr("含回车"));
+  if (hasControlChar) risks.push(tr("含控制字符"));
+  if (!risks.length && options?.confirmAlways) risks.push(tr("已开启每次确认"));
 
   const summary = needsConfirm
-    ? `将粘贴 ${lineCount} 行（${risks.join("、")}），可能立即执行`
-    : `将粘贴 ${lineCount} 行、${text.length} 字符`;
+    ? tr("将粘贴 {lines} 行（{risks}），可能立即执行", {
+        lines: lineCount,
+        risks: risks.join(tr("、")),
+      })
+    : tr("将粘贴 {lines} 行、{chars} 字符", { lines: lineCount, chars: text.length });
 
   return {
     lineCount,

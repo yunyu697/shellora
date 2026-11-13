@@ -143,16 +143,18 @@ pub async fn walk_tree(
             if is_dir {
                 let child_depth = depth + 1;
                 if child_depth > max_depth {
-                    return Err(limit_exceeded(format!(
-                        "目录层级超过上限 {max_depth}（在 {rel}）"
+                    return Err(limit_exceeded(crate::i18n::t_args(
+                        "目录层级超过上限 {max_depth}（在 {rel}）",
+                        &[("max_depth", &max_depth.to_string()), ("rel", &rel)],
                     )));
                 }
                 tree.dirs.push(rel.clone());
                 stack.push((abs, rel, child_depth));
             } else {
                 if tree.files.len() >= max_files {
-                    return Err(limit_exceeded(format!(
-                        "文件数超过上限 {max_files}（在 {rel}）"
+                    return Err(limit_exceeded(crate::i18n::t_args(
+                        "文件数超过上限 {max_files}（在 {rel}）",
+                        &[("max_files", &max_files.to_string()), ("rel", &rel)],
                     )));
                 }
                 tree.files.push(ScanFile {
@@ -185,7 +187,10 @@ pub async fn create_dirs(paths: &[PathBuf]) -> Result<usize, ErrorDto> {
 pub async fn create_dir(path: String) -> Result<(), ErrorDto> {
     let target = PathBuf::from(&path);
     if tokio::fs::try_exists(&target).await.unwrap_or(false) {
-        return Err(ErrorDto::new(ErrorCode::FsIo, format!("已存在：{path}")));
+        return Err(ErrorDto::new(
+            ErrorCode::FsIo,
+            crate::i18n::t_args("已存在：{path}", &[("path", &path)]),
+        ));
     }
     tokio::fs::create_dir(&target).await.map_err(map_io)
 }
@@ -194,7 +199,10 @@ pub async fn create_dir(path: String) -> Result<(), ErrorDto> {
 pub async fn rename_path(from: String, to: String) -> Result<(), ErrorDto> {
     let target = PathBuf::from(&to);
     if tokio::fs::try_exists(&target).await.unwrap_or(false) {
-        return Err(ErrorDto::new(ErrorCode::FsIo, format!("目标已存在：{to}")));
+        return Err(ErrorDto::new(
+            ErrorCode::FsIo,
+            crate::i18n::t_args("目标已存在：{path}", &[("path", &to)]),
+        ));
     }
     tokio::fs::rename(PathBuf::from(&from), &target)
         .await

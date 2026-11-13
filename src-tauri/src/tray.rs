@@ -77,10 +77,11 @@ fn model(app: &AppHandle) -> Model {
 }
 
 fn tooltip(model: &Model) -> String {
-    match &model.connected {
-        Some(target) => format!("Shellora — 已连接 {target}"),
-        None => "Shellora — 未连接".to_string(),
-    }
+    let status = match &model.connected {
+        Some(target) => crate::i18n::t_args("已连接 {who}", &[("who", target)]),
+        None => crate::i18n::t("未连接"),
+    };
+    format!("Shellora — {status}")
 }
 
 /// 选中与当前缩放接近的那一档位图（16/24/32/48），避免系统缩放糊成一团。
@@ -119,16 +120,27 @@ pub fn refresh_icon(app: &AppHandle) {
 }
 
 fn build_menu(app: &AppHandle, model: &Model) -> tauri::Result<Menu<tauri::Wry>> {
-    let toggle = MenuItem::with_id(app, ID_SHOW_HIDE, "显示/隐藏主窗口", true, None::<&str>)?;
-    let new_connection =
-        MenuItem::with_id(app, ID_NEW_CONNECTION, "新建连接", true, None::<&str>)?;
+    let toggle = MenuItem::with_id(
+        app,
+        ID_SHOW_HIDE,
+        crate::i18n::t("显示/隐藏主窗口"),
+        true,
+        None::<&str>,
+    )?;
+    let new_connection = MenuItem::with_id(
+        app,
+        ID_NEW_CONNECTION,
+        crate::i18n::t("新建连接"),
+        true,
+        None::<&str>,
+    )?;
 
     let mut session_items: Vec<MenuItem<tauri::Wry>> = Vec::new();
     if model.sessions.is_empty() {
         session_items.push(MenuItem::with_id(
             app,
             "session_none",
-            "（暂无活动会话）",
+            crate::i18n::t("（暂无活动会话）"),
             false,
             None::<&str>,
         )?);
@@ -152,10 +164,16 @@ fn build_menu(app: &AppHandle, model: &Model) -> tauri::Result<Menu<tauri::Wry>>
         .iter()
         .map(|i| i as &dyn tauri::menu::IsMenuItem<tauri::Wry>)
         .collect();
-    let sessions = Submenu::with_items(app, "活动会话", true, &session_refs)?;
+    let sessions = Submenu::with_items(app, crate::i18n::t("活动会话"), true, &session_refs)?;
 
     let sep = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItem::with_id(app, ID_QUIT, "退出 Shellora", true, None::<&str>)?;
+    let quit = MenuItem::with_id(
+        app,
+        ID_QUIT,
+        crate::i18n::t("退出 Shellora"),
+        true,
+        None::<&str>,
+    )?;
     Menu::with_items(app, &[&toggle, &new_connection, &sessions, &sep, &quit])
 }
 
@@ -170,9 +188,12 @@ fn apply_model(app: &AppHandle) {
 }
 
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(saved) = app.state::<SettingsStore>().get().locale {
+        crate::i18n::set(&saved);
+    }
     let menu = build_menu(app, &Model::default())?;
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("Shellora — 未连接")
+        .tooltip(tooltip(&Model::default()))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| on_menu(app, event.id().0.as_str()))
@@ -300,4 +321,9 @@ pub fn settings_snapshot(app: &AppHandle) -> (bool, bool) {
 
 pub fn set_close_to_tray(app: &AppHandle, value: bool) {
     app.state::<SettingsStore>().set_close_to_tray(value);
+}
+
+/// 语言切换后重建菜单与提示（前端调用 `set_locale` 时触发）。
+pub fn refresh_language(app: &AppHandle) {
+    apply_model(app);
 }

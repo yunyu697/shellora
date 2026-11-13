@@ -25,8 +25,9 @@ pub fn terminal_open(
     channel: Channel<StreamMsg>,
 ) -> Result<OpenTabDto, ErrorDto> {
     if state.sessions.count() >= MAX_TABS {
-        return Err(ErrorDto::internal(format!(
-            "标签已达上限 {MAX_TABS}，请先关闭标签"
+        return Err(ErrorDto::internal(crate::i18n::t_args(
+            "标签已达上限 {max}，请先关闭标签",
+            &[("max", &MAX_TABS.to_string())],
         )));
     }
     let tab_id = uuid::Uuid::now_v7().to_string();
@@ -47,12 +48,12 @@ pub fn terminal_input(
     let entry = state
         .sessions
         .get(&tab_id)
-        .ok_or_else(|| ErrorDto::internal("标签不存在"))?;
+        .ok_or_else(|| ErrorDto::internal(crate::i18n::t("标签不存在")))?;
     let tx = entry
         .channels
         .lock()
         .map(|c| c.input_tx.clone())
-        .map_err(|_| ErrorDto::internal("会话锁失效"))?;
+        .map_err(|_| ErrorDto::internal(crate::i18n::t("会话锁失效")))?;
     if tx.try_send(data.into_bytes()).is_err() {
         tracing::warn!(target: "ipc", %tab_id, "input queue full or closed");
     }
@@ -70,12 +71,12 @@ pub fn terminal_resize(
     let entry = state
         .sessions
         .get(&tab_id)
-        .ok_or_else(|| ErrorDto::internal("标签不存在"))?;
+        .ok_or_else(|| ErrorDto::internal(crate::i18n::t("标签不存在")))?;
     let tx = entry
         .channels
         .lock()
         .map(|c| c.ctrl_tx.clone())
-        .map_err(|_| ErrorDto::internal("会话锁失效"))?;
+        .map_err(|_| ErrorDto::internal(crate::i18n::t("会话锁失效")))?;
     tx.try_send(Ctrl::Resize { cols, rows }).ok();
     Ok(())
 }
@@ -90,7 +91,7 @@ pub fn terminal_ack(
     let entry = state
         .sessions
         .get(&tab_id)
-        .ok_or_else(|| ErrorDto::internal("标签不存在"))?;
+        .ok_or_else(|| ErrorDto::internal(crate::i18n::t("标签不存在")))?;
     let permits = permits_for(bytes as usize, TERM_PERMIT_BYTES) as usize;
     entry.permits.add_permits(permits);
     Ok(())
@@ -117,7 +118,7 @@ pub fn terminal_retry(
     let entry = state
         .sessions
         .get(&tab_id)
-        .ok_or_else(|| ErrorDto::internal("标签不存在"))?;
+        .ok_or_else(|| ErrorDto::internal(crate::i18n::t("标签不存在")))?;
     actor::spawn(app, entry);
     Ok(())
 }
@@ -131,7 +132,7 @@ pub fn terminal_state(
         .sessions
         .get(&tab_id)
         .map(|e| e.state_snapshot())
-        .ok_or_else(|| ErrorDto::internal("标签不存在"))
+        .ok_or_else(|| ErrorDto::internal(crate::i18n::t("标签不存在")))
 }
 
 /// 凭据后端探测（D1）。
@@ -214,7 +215,7 @@ fn session_ssh(state: &State<'_, AppState>, tab_id: &str) -> Result<SharedSsh, E
         .sessions
         .get(tab_id)
         .map(|entry| entry.ssh.clone())
-        .ok_or_else(|| ErrorDto::internal("标签不存在"))
+        .ok_or_else(|| ErrorDto::internal(crate::i18n::t("标签不存在")))
 }
 
 /// SFTP 下载：远端单文件 → 本地，写 `.part` 并支持断点续传。
@@ -483,6 +484,17 @@ pub fn tray_settings_set(app: AppHandle, close_to_tray: bool) -> TraySettingsDto
     tray_settings_get(app)
 }
 
+/// 前端检测到系统语言或用户手动切换后调用；同步 Rust 侧托盘菜单与提示。
+#[tauri::command]
+pub fn set_locale(app: AppHandle, locale: String) {
+    use tauri::Manager as _;
+    crate::i18n::set(&locale);
+    app.state::<crate::settings::SettingsStore>()
+        .set_locale(&locale);
+    crate::lifecycle::note(&format!("settings.locale={locale}"));
+    crate::tray::refresh_language(&app);
+}
+
 /// 前端把活动会话与连接状态同步给托盘（菜单项 + tooltip）。
 #[tauri::command]
 pub fn tray_sync(
@@ -555,7 +567,10 @@ fn parse_choice(choice: &str, new_name: Option<String>) -> Result<ConflictChoice
         "overwrite" => Ok(ConflictChoice::Overwrite),
         "skip" => Ok(ConflictChoice::Skip),
         "rename" => Ok(ConflictChoice::Rename { new_name }),
-        other => Err(ErrorDto::internal(format!("未知冲突策略：{other}"))),
+        other => Err(ErrorDto::internal(crate::i18n::t_args(
+            "未知冲突策略：{policy}",
+            &[("policy", other)],
+        ))),
     }
 }
 
@@ -647,13 +662,23 @@ pub fn data_clear(
     let all = match scope.as_str() {
         "cache" => false,
         "all" => true,
-        other => return Err(ErrorDto::internal(format!("未知清理范围：{other}"))),
+        other => {
+            return Err(ErrorDto::internal(crate::i18n::t_args(
+                "未知清理范围：{scope}",
+                &[("scope", other)],
+            )))
+        }
     };
 
     let dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| ErrorDto::internal(format!("读取数据目录失败：{e}")))?;
+        .map_err(|e| {
+            ErrorDto::internal(crate::i18n::t_args(
+                "读取数据目录失败：{error}",
+                &[("error", &e.to_string())],
+            ))
+        })?;
     let db_path = crate::paths::resolve_db_file(&dir);
     let data_dir = db_path.parent().unwrap_or(&dir);
 
@@ -682,7 +707,10 @@ pub fn data_clear(
                 let name = name.to_string_lossy();
                 if name.ends_with(".bak") {
                     if let Err(err) = std::fs::remove_file(entry.path()) {
-                        warnings.push(format!("删除 {name} 失败：{err}"));
+                        warnings.push(crate::i18n::t_args(
+                            "删除 {name} 失败：{error}",
+                            &[("name", &name), ("error", &err.to_string())],
+                        ));
                     } else {
                         items.push(name.into_owned());
                     }
@@ -695,7 +723,10 @@ pub fn data_clear(
     if logs.is_dir() {
         match std::fs::remove_dir_all(&logs) {
             Ok(()) => items.push("logs".to_string()),
-            Err(err) => warnings.push(format!("删除 logs 失败：{err}")),
+            Err(err) => warnings.push(crate::i18n::t_args(
+                "删除 logs 失败：{error}",
+                &[("error", &err.to_string())],
+            )),
         }
     }
 

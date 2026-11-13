@@ -28,6 +28,7 @@ import type {
   StreamMsg,
 } from "../../lib/ipc/types";
 import { installControlHandlers } from "./controlHandlers";
+import { tr } from "../../i18n";
 import { detectPlatform, resolveKey } from "./keymap";
 import { findLinks } from "./links";
 import { normalizeSelection, wrapBracketedPaste } from "./pasteGuard";
@@ -198,7 +199,7 @@ export function useTerminal(
           return;
         }
         case "eof":
-          term.write("\r\n\x1b[90m[远端已结束会话]\x1b[0m\r\n");
+          term.write(`\r\n\x1b[90m[${tr("远端已结束会话")}]\x1b[0m\r\n`);
           return;
         case "title":
           handlersRef.current.onTitle(msg.s);

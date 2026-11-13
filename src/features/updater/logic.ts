@@ -1,5 +1,6 @@
 // 更新流程的纯函数：错误码映射、体积解析、进度换算。
 // 与 UI 解耦，便于单元测试；所有文案面向用户。
+import { tr } from "../../i18n";
 
 export type UpdateStage = "check" | "download" | "install";
 
@@ -10,32 +11,41 @@ export interface UpdateErrorInfo {
   message: string;
 }
 
-const ERROR_TEXT: Record<UpdateErrorInfo["code"], { title: string; hint: string }> = {
-  "UPD-01": {
-    title: "网络请求失败",
-    hint: "请检查网络或代理设置后重试。",
-  },
-  "UPD-02": {
-    title: "更新源不可用",
-    hint: "更新源没有当前平台的版本清单，请稍后重试或手动下载。",
-  },
-  "UPD-03": {
-    title: "签名校验失败",
-    hint: "安装包签名与内置公钥不匹配，已拒绝安装。请勿继续使用该更新源。",
-  },
-  "UPD-04": {
-    title: "下载失败",
-    hint: "下载中断或安装包不完整，请重试。",
-  },
-  "UPD-05": {
-    title: "安装失败",
-    hint: "安装程序未能启动，请重试或手动下载安装包。",
-  },
-  "UPD-99": {
-    title: "未知错误",
-    hint: "请重试；若持续失败，请附带错误码反馈。",
-  },
-};
+// 惰性求值：切语言后再次归类错误时拿到的是新译文。
+function errorText(code: UpdateErrorInfo["code"]): { title: string; hint: string } {
+  switch (code) {
+    case "UPD-01":
+      return {
+        title: tr("网络请求失败"),
+        hint: tr("请检查网络或代理设置后重试。"),
+      };
+    case "UPD-02":
+      return {
+        title: tr("更新源不可用"),
+        hint: tr("更新源没有当前平台的版本清单，请稍后重试或手动下载。"),
+      };
+    case "UPD-03":
+      return {
+        title: tr("签名校验失败"),
+        hint: tr("安装包签名与内置公钥不匹配，已拒绝安装。请勿继续使用该更新源。"),
+      };
+    case "UPD-04":
+      return {
+        title: tr("下载失败"),
+        hint: tr("下载中断或安装包不完整，请重试。"),
+      };
+    case "UPD-05":
+      return {
+        title: tr("安装失败"),
+        hint: tr("安装程序未能启动，请重试或手动下载安装包。"),
+      };
+    default:
+      return {
+        title: tr("未知错误"),
+        hint: tr("请重试；若持续失败，请附带错误码反馈。"),
+      };
+  }
+}
 
 export function messageOf(error: unknown): string {
   if (typeof error === "string") return error;
@@ -87,16 +97,17 @@ export function classifyError(error: unknown, stage: UpdateStage): UpdateErrorIn
   else if (stage === "install") code = "UPD-05";
   else code = "UPD-99";
 
+  const text = errorText(code);
   return {
     code,
-    title: ERROR_TEXT[code].title,
-    message: message || ERROR_TEXT[code].hint,
+    title: text.title,
+    message: message || text.hint,
   };
 }
 
 /** 字节数展示：MB 保留一位小数，KB 取整。 */
 export function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return "未知";
+  if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return tr("未知");
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${bytes} B`;

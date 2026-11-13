@@ -500,9 +500,9 @@ impl TransferManager {
         let mut ids = Vec::with_capacity(items.len());
         for item in items {
             if item.direction != "upload" && item.direction != "download" {
-                return Err(ErrorDto::internal(format!(
-                    "未知传输方向：{}",
-                    item.direction
+                return Err(ErrorDto::internal(crate::i18n::t_args(
+                    "未知传输方向：{direction}",
+                    &[("direction", &item.direction)],
                 )));
             }
             let id = uuid::Uuid::now_v7().to_string();
@@ -558,15 +558,15 @@ impl TransferManager {
     ) -> Result<TreeGroupStartedDto, ErrorDto> {
         let direction = request.direction.as_str();
         if direction != "upload" && direction != "download" {
-            return Err(ErrorDto::internal(format!(
-                "未知传输方向：{}",
-                request.direction
+            return Err(ErrorDto::internal(crate::i18n::t_args(
+                "未知传输方向：{direction}",
+                &[("direction", &request.direction)],
             )));
         }
         let policy = Policy::from_str(&request.options.conflict_policy).ok_or_else(|| {
-            ErrorDto::internal(format!(
-                "未知冲突策略：{}",
-                request.options.conflict_policy
+            ErrorDto::internal(crate::i18n::t_args(
+                "未知冲突策略：{policy}",
+                &[("policy", &request.options.conflict_policy)],
             ))
         })?;
         let max_depth = request.options.max_depth.max(1);
@@ -762,7 +762,12 @@ impl TransferManager {
             .lock()
             .ok()
             .and_then(|map| map.get(id).cloned())
-            .ok_or_else(|| ErrorDto::internal(format!("传输任务不存在：{id}")))
+            .ok_or_else(|| {
+                ErrorDto::internal(crate::i18n::t_args(
+                    "传输任务不存在：{id}",
+                    &[("id", id)],
+                ))
+            })
     }
 
     fn group(&self, id: &str) -> Result<Arc<Group>, ErrorDto> {
@@ -770,7 +775,12 @@ impl TransferManager {
             .lock()
             .ok()
             .and_then(|map| map.get(id).cloned())
-            .ok_or_else(|| ErrorDto::internal(format!("传输组不存在：{id}")))
+            .ok_or_else(|| {
+                ErrorDto::internal(crate::i18n::t_args(
+                    "传输组不存在：{id}",
+                    &[("id", id)],
+                ))
+            })
     }
 
     pub fn list(&self) -> Vec<TransferTaskDto> {
@@ -816,7 +826,10 @@ impl TransferManager {
         let task = self.task(id)?;
         let state = task.state();
         if state != "paused" && state != "queued" {
-            return Err(ErrorDto::internal(format!("任务当前不可继续：{state}")));
+            return Err(ErrorDto::internal(crate::i18n::t_args(
+                "任务当前不可继续：{state}",
+                &[("state", state)],
+            )));
         }
         task.pause.store(false, Ordering::Relaxed);
         task.cancel.store(false, Ordering::Relaxed);
@@ -842,11 +855,11 @@ impl TransferManager {
     ) -> Result<(), ErrorDto> {
         let task = self.task(id)?;
         if task.state() != "conflict" {
-            return Err(ErrorDto::internal("任务不在冲突状态"));
+            return Err(ErrorDto::internal(crate::i18n::t("任务不在冲突状态")));
         }
         let (direction, remote_path, local_path) = {
             let Ok(inner) = task.inner.lock() else {
-                return Err(ErrorDto::internal("任务状态锁失效"));
+                return Err(ErrorDto::internal(crate::i18n::t("任务状态锁失效")));
             };
             (
                 inner.direction.clone(),
@@ -1009,7 +1022,7 @@ async fn pick_remote_name(
             return Ok(candidate);
         }
     }
-    Err(ErrorDto::internal("无法生成不冲突的远端文件名"))
+    Err(ErrorDto::internal(crate::i18n::t("无法生成不冲突的远端文件名")))
 }
 
 async fn pick_local_name(
@@ -1034,7 +1047,7 @@ async fn pick_local_name(
             return Ok(candidate.to_string_lossy().to_string());
         }
     }
-    Err(ErrorDto::internal("无法生成不冲突的本地文件名"))
+    Err(ErrorDto::internal(crate::i18n::t("无法生成不冲突的本地文件名")))
 }
 
 fn remote_dir_name(path: &str) -> (String, String) {

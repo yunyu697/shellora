@@ -1593,12 +1593,18 @@ kbd {
 .qhead2 .ttl {
   font-size: 11.5px;
   font-weight: 600;
+  white-space: nowrap;
+  flex: none;
   color: var(--text-1);
 }
 
 .qhead2 .cnt {
   font-size: 9px;
   color: var(--text-3);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .qhead2 .spd {
@@ -3150,6 +3156,25 @@ select.in2 {
   color: var(--text-3);
   font-size: 10px;
   line-height: 1.5;
+}
+
+/* 语言选择：整行铺满，长语种名不截断 */
+.settings-field--stack {
+  display: grid;
+  gap: var(--sp-2);
+  cursor: default;
+}
+
+.settings-field--stack select {
+  width: 100%;
+  height: 34px;
+  padding: 0 var(--sp-3);
+  background: var(--surface-2);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12.5px;
 }
 
 .settings-actions {
@@ -4788,6 +4813,45 @@ select.in2 {
   gap: var(--sp-2);
 }
 
+/* 表头与文件行共用同一套栅格，保证“名称/大小/修改时间”与单元格逐列对齐 */
+.app--next .frow,
+.app--next .colrow {
+  display: grid;
+  grid-template-columns: 15px 26px minmax(0, 1fr) 86px 92px;
+  column-gap: var(--sp-2);
+  align-items: center;
+}
+
+.app--next .colrow {
+  height: 28px;
+  padding: 0 var(--sp-3);
+}
+
+.app--next .colrow .nm {
+  grid-column: 3;
+}
+
+.app--next .colrow .sz {
+  grid-column: 4;
+  width: auto;
+  text-align: right;
+}
+
+.app--next .colrow .dt {
+  grid-column: 5;
+  width: auto;
+  text-align: right;
+}
+
+.app--next .drawer--compact .frow,
+.app--next .drawer--compact .colrow {
+  grid-template-columns: 15px 26px minmax(0, 1fr) 64px;
+}
+
+.app--next .drawer--compact .colrow .dt {
+  display: none;
+}
+
 .app--next .frow .nm {
   font-size: 13px;
 }
@@ -4828,6 +4892,17 @@ select.in2 {
 
 .app--next .drawer--compact .qrow2 .rate,
 .app--next .drawer--compact .qrow2 .eta {
+  display: none;
+}
+
+/* 窄抽屉里队列标题优先显示，计数让位，避免标题折成两行 */
+.app--next .drawer--compact .qhead2 .cnt {
+  display: none;
+}
+
+/* 窄抽屉：头部按钮只留图标，避免“终端”“刷新队列”等长译文被截断 */
+.app--next .drawer--compact .filehead .btn__t,
+.app--next .drawer--compact .qrow2 .dirchip {
   display: none;
 }
 

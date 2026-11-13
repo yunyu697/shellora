@@ -14,6 +14,7 @@ import {
   type UpdateErrorInfo,
   type UpdateStage,
 } from "./logic";
+import { tr } from "../../i18n";
 
 type Phase =
   | "idle"
@@ -185,7 +186,7 @@ export function UpdateButton() {
   const install = useCallback(async () => {
     const update = updateRef.current;
     if (!update) {
-      setError(classifyError("下载状态丢失，请重新检查更新", "install"));
+      setError(classifyError(tr("下载状态丢失，请重新检查更新"), "install"));
       setRetryStage("check");
       setPhase("error");
       return;
@@ -227,7 +228,10 @@ export function UpdateButton() {
     setOpen(false);
   }
 
-  const title = hasUpdate && info ? `发现新版本 v${info.version}` : "检查更新";
+  const title =
+    hasUpdate && info
+      ? tr("发现新版本 v{version}", { version: info.version })
+      : tr("检查更新");
 
   return (
     <>
@@ -247,7 +251,7 @@ export function UpdateButton() {
           className="settings-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label="软件更新"
+          aria-label={tr("软件更新")}
           onClick={(ev) => {
             if (ev.target === ev.currentTarget) closePanel();
           }}
@@ -258,15 +262,15 @@ export function UpdateButton() {
                 <Icon name="download" />
               </span>
               <div className="upd-title">
-                <h2>软件更新</h2>
-                <p>当前版本 v{currentVersion || info?.currentVersion || "—"}</p>
+                <h2>{tr("软件更新")}</h2>
+                <p>{tr("当前版本 v{version}", { version: currentVersion || info?.currentVersion || "—" })}</p>
               </div>
               <span className="grow" />
               <button
                 type="button"
                 className="iconbtn"
-                title="关闭"
-                aria-label="关闭更新面板"
+                title={tr("关闭")}
+                aria-label={tr("关闭更新面板")}
                 disabled={busy}
                 onClick={closePanel}
               >
@@ -277,8 +281,8 @@ export function UpdateButton() {
             {phase === "checking" ? (
               <div className="upd-body upd-center">
                 <span className="upd-spinner" aria-hidden />
-                <p className="upd-lead">正在检查更新…</p>
-                <p className="settings-card__hint">连接 GitHub Releases 的更新清单。</p>
+                <p className="upd-lead">{tr("正在检查更新…")}</p>
+                <p className="settings-card__hint">{tr("连接 GitHub Releases 的更新清单。")}</p>
               </div>
             ) : null}
 
@@ -287,14 +291,18 @@ export function UpdateButton() {
                 <span className="upd-badge-ok">
                   <Icon name="check" />
                 </span>
-                <p className="upd-lead">已是最新版本</p>
-                <p className="settings-card__hint">当前 v{currentVersion || info?.currentVersion || "—"}，无需更新。</p>
+                <p className="upd-lead">{tr("已是最新版本")}</p>
+                <p className="settings-card__hint">
+                  {tr("当前 v{version}，无需更新。", {
+                    version: currentVersion || info?.currentVersion || "—",
+                  })}
+                </p>
                 <div className="settings-actions">
                   <button type="button" className="btn" onClick={closePanel}>
-                    关闭
+                    {tr("关闭")}
                   </button>
                   <button type="button" className="btn btn--primary" onClick={() => void runCheck()}>
-                    重新检查
+                    {tr("重新检查")}
                   </button>
                 </div>
               </div>
@@ -312,18 +320,18 @@ export function UpdateButton() {
                   </span>
                 </div>
                 <div className="upd-notes">
-                  <p className="upd-notes__label">更新说明</p>
-                  <pre>{info.notes?.trim() || "该版本未提供更新说明。"}</pre>
+                  <p className="upd-notes__label">{tr("更新说明")}</p>
+                  <pre>{info.notes?.trim() || tr("该版本未提供更新说明。")}</pre>
                 </div>
                 <p className="settings-card__hint">
-                  安装包会先下载到本地，并校验独立签名（与代码签名证书分离）。
+                  {tr("安装包会先下载到本地，并校验独立签名（与代码签名证书分离）。")}
                 </p>
                 <div className="settings-actions">
                   <button type="button" className="btn" onClick={closePanel}>
-                    稍后
+                    {tr("稍后")}
                   </button>
                   <button type="button" className="btn btn--primary" onClick={() => void download()}>
-                    <Icon name="download" /> 下载更新
+                    <Icon name="download" /> {tr("下载更新")}
                   </button>
                 </div>
               </div>
@@ -331,14 +339,16 @@ export function UpdateButton() {
 
             {phase === "downloading" && info ? (
               <div className="upd-body">
-                <p className="upd-lead">正在下载 v{info.version}…</p>
+                <p className="upd-lead">
+                  {tr("正在下载 v{version}…", { version: info.version })}
+                </p>
                 <div
                   className="upd-progress"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={percent ?? undefined}
-                  aria-valuetext={percent === null ? "未知进度" : `${percent}%`}
+                  aria-valuetext={percent === null ? tr("未知进度") : `${percent}%`}
                 >
                   <span
                     className={percent === null ? "upd-progress__bar indeterminate" : "upd-progress__bar"}
@@ -350,9 +360,9 @@ export function UpdateButton() {
                     {formatBytes(downloaded)}
                     {total ? ` / ${formatBytes(total)}` : ""}
                   </span>
-                  <span>{percent === null ? "下载中" : `${percent}%`}</span>
+                  <span>{percent === null ? tr("下载中") : `${percent}%`}</span>
                 </div>
-                <p className="settings-card__hint">下载结束后会自动校验签名；校验失败将拒绝安装。</p>
+                <p className="settings-card__hint">{tr("下载结束后会自动校验签名；校验失败将拒绝安装。")}</p>
               </div>
             ) : null}
 
@@ -361,16 +371,18 @@ export function UpdateButton() {
                 <span className="upd-badge-ok">
                   <Icon name="check" />
                 </span>
-                <p className="upd-lead">v{info.version} 已下载并通过签名校验</p>
+                <p className="upd-lead">
+                  {tr("v{version} 已下载并通过签名校验", { version: info.version })}
+                </p>
                 <p className="settings-card__hint">
-                  点击「安装并重启」后应用会关闭，由安装器完成升级。未保存的终端会话会中断。
+                  {tr("点击「安装并重启」后应用会关闭，由安装器完成升级。未保存的终端会话会中断。")}
                 </p>
                 <div className="settings-actions">
                   <button type="button" className="btn" onClick={() => void download()}>
-                    重新下载
+                    {tr("重新下载")}
                   </button>
                   <button type="button" className="btn btn--primary" onClick={() => void install()}>
-                    安装并重启
+                    {tr("安装并重启")}
                   </button>
                 </div>
               </div>
@@ -379,8 +391,8 @@ export function UpdateButton() {
             {phase === "installing" ? (
               <div className="upd-body upd-center">
                 <span className="upd-spinner" aria-hidden />
-                <p className="upd-lead">正在启动安装程序…</p>
-                <p className="settings-card__hint">应用即将关闭，安装完成后会重新启动。</p>
+                <p className="upd-lead">{tr("正在启动安装程序…")}</p>
+                <p className="settings-card__hint">{tr("应用即将关闭，安装完成后会重新启动。")}</p>
               </div>
             ) : null}
 
@@ -395,17 +407,17 @@ export function UpdateButton() {
                 </div>
                 <p className="settings-card__hint">
                   {retryStage === "check"
-                    ? "请检查网络或代理后重试。"
+                    ? tr("请检查网络或代理后重试。")
                     : retryStage === "download"
-                      ? "已下载的部分会被丢弃，重试会重新开始。"
-                      : "安装未启动，应用仍可正常使用。"}
+                      ? tr("已下载的部分会被丢弃，重试会重新开始。")
+                      : tr("安装未启动，应用仍可正常使用。")}
                 </p>
                 <div className="settings-actions">
                   <button type="button" className="btn" onClick={closePanel}>
-                    关闭
+                    {tr("关闭")}
                   </button>
                   <button type="button" className="btn btn--primary" onClick={retry}>
-                    <Icon name="refresh" /> 重试
+                    <Icon name="refresh" /> {tr("重试")}
                   </button>
                 </div>
               </div>

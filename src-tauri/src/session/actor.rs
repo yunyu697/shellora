@@ -103,7 +103,7 @@ async fn run(
                     if let Some(handle) = entry.ssh.lock().await.take() {
                         handle.disconnect(russh::Disconnect::ByApplication, "", "en").await.ok();
                     }
-                    emit(&app, &entry, ConnStateDto::closed("用户关闭"));
+                    emit(&app, &entry, ConnStateDto::closed(crate::i18n::t("用户关闭")));
                     break;
                 }
             }
@@ -133,7 +133,7 @@ async fn run(
                     }
                     let code = None;
                     let _ = entry.ipc.send(StreamMsg::Eof { code });
-                    emit(&app, &entry, ConnStateDto::closed("远端关闭通道"));
+                    emit(&app, &entry, ConnStateDto::closed(crate::i18n::t("远端关闭通道")));
                     break;
                 }
                 russh::ChannelMsg::ExitStatus { exit_status } => {
@@ -142,7 +142,7 @@ async fn run(
                 _ => {}
             },
             Ok(None) => {
-                emit(&app, &entry, ConnStateDto::closed("SSH 通道结束"));
+                emit(&app, &entry, ConnStateDto::closed(crate::i18n::t("SSH 通道结束")));
                 break;
             }
             Err(_) => {
@@ -168,7 +168,7 @@ async fn run(
     writer_task.abort();
     // 连接结束：移出共享句柄，SFTP 后续操作会得到明确的“会话未就绪”。
     entry.ssh.lock().await.take();
-    emit(&app, &entry, ConnStateDto::closed("会话结束"));
+    emit(&app, &entry, ConnStateDto::closed(crate::i18n::t("会话结束")));
 }
 
 /// 发送一帧：先按字节占用信用窗口，前端 ack 后才归还（背压核心）。

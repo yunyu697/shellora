@@ -53,6 +53,9 @@ jobs:
       - name: 版本一致性检查
         run: pnpm lint:version
 
+      - name: 未翻译字符串检查
+        run: pnpm lint:i18n
+
       - name: 单元测试
         run: pnpm vitest run
 

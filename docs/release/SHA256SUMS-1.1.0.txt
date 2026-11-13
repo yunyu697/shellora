@@ -1,0 +1,2 @@
+c5a88fb9037051f042e0d47ef8446b349fdaddfbffbf6cafa3c2ca11d4248bcf  Shellora_1.1.0_x64-setup.exe
+6fdc3c92a4b50f5d2f2cd3788386d3544cbe6dace017fdbd5c0a4bfcf3e70dcb  Shellora_1.1.0_x64_en-US.msi

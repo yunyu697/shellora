@@ -196,13 +196,29 @@ interface Internals {
   invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
   transformCallback: (cb: (payload: unknown) => void) => number;
   unregisterCallback: (id: number) => void;
+  metadata: {
+    currentWindow: { label: string };
+    currentWebview: { label: string; windowLabel: string };
+  };
 }
 
 const internals: Internals = {
   transformCallback: () => 0,
   unregisterCallback: () => undefined,
+  metadata: {
+    currentWindow: { label: "main" },
+    currentWebview: { label: "main", windowLabel: "main" },
+  },
   invoke: async (cmd, args = {}) => {
     switch (cmd) {
+      case "plugin:app|version":
+        return "1.1.0-preview";
+      case "plugin:window|is_maximized":
+        return false;
+      case "plugin:event|listen":
+        return 1;
+      case "plugin:event|unlisten":
+        return null;
       case "secret_probe":
         return { backend: "keyring", detail: "视觉预览夹具" };
       case "db_list_connections":
@@ -315,6 +331,21 @@ const internals: Internals = {
       }
       case "terminal_open":
         return { tabId: "preview-tab" };
+      // 预览环境默认不驻留托盘，设置页据此渲染提示
+      case "tray_settings_get":
+        return {
+          closeToTray: false,
+          autostart: false,
+          autostartSupported: true,
+          platform: "windows",
+        };
+      case "tray_settings_set":
+        return {
+          closeToTray: Boolean((args as { closeToTray?: boolean }).closeToTray),
+          autostart: false,
+          autostartSupported: true,
+          platform: "windows",
+        };
       // 预览环境没有真实 SFTP：记录调用，供界面与自查断言使用
       case "sftp_mkdir":
       case "sftp_rename":

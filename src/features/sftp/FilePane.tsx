@@ -3,6 +3,7 @@ import type { DragEvent, MouseEvent as ReactMouseEvent } from "react";
 
 import { Icon } from "../../components/Icons";
 import type { DirEntry } from "../../lib/ipc/types";
+import { tr } from "../../i18n";
 
 const ROW_H = 44;
 const OVERSCAN = 4;
@@ -335,30 +336,30 @@ export function FilePane({
       <header className="fhead">
         <span className="scope">{side === "local" ? "LOCAL" : "REMOTE"}</span>
         <span className="ttl">{title}</span>
-        <span className="sub ell">{path || (side === "local" ? "此电脑" : "/")}</span>
+        <span className="sub ell">{path || (side === "local" ? tr("此电脑") : "/")}</span>
         <span className="grow" />
         <button
           type="button"
           className="ib"
           disabled={!parent}
           onClick={() => parent && onNavigate(parent)}
-          title="上一级"
+          title={tr("上一级")}
         >
           <Icon name="chevronUp" />
         </button>
-        <button type="button" className="ib" onClick={onRefresh} disabled={loading || idle} title="刷新">
+        <button type="button" className="ib" onClick={onRefresh} disabled={loading || idle} title={tr("刷新")}>
           <Icon name="refresh" />
         </button>
-        <button type="button" className="ib" title="更多">
+        <button type="button" className="ib" title={tr("更多")}>
           <Icon name="more" />
         </button>
       </header>
 
-      <nav className="crumb2" aria-label={`${title}路径`}>
-        <button type="button" className="cb" onClick={goBack} disabled={!canBack} title="后退">
+      <nav className="crumb2" aria-label={tr("{title}路径", { title })}>
+        <button type="button" className="cb" onClick={goBack} disabled={!canBack} title={tr("后退")}>
           <Icon name="chevronLeft" />
         </button>
-        <button type="button" className="cb" onClick={goForward} disabled={!canForward} title="前进">
+        <button type="button" className="cb" onClick={goForward} disabled={!canForward} title={tr("前进")}>
           <Icon name="chevronRight" />
         </button>
         <span className="sep">/</span>
@@ -400,23 +401,23 @@ export function FilePane({
             <Icon name={side === "local" ? "upload" : "download"} />
             {side === "local" ? "Upload" : "Download"}
           </button>
-          <button type="button" className="x" aria-label="清除选择" onClick={() => onSelect(new Set())}>
+          <button type="button" className="x" aria-label={tr("清除选择")} onClick={() => onSelect(new Set())}>
             <Icon name="x" />
           </button>
         </div>
       ) : null}
 
       <div className="colrow">
-        <span className="nm">Name</span>
-        <span className="sz">Size</span>
-        <span className="dt">Modified</span>
+        <span className="nm">{tr("名称")}</span>
+        <span className="sz">{tr("大小")}</span>
+        <span className="dt">{tr("修改时间")}</span>
       </div>
 
       {idle ? (
         <div className="empty2">
           <Icon name="server" />
-          <b>远端会话未就绪</b>
-          <span>{idleHint ?? "从会话库打开一个连接后，这里会显示远端目录。"}</span>
+          <b>{tr("远端会话未就绪")}</b>
+          <span>{idleHint ?? tr("从会话库打开一个连接后，这里会显示远端目录。")}</span>
         </div>
       ) : (
         <div
@@ -437,7 +438,7 @@ export function FilePane({
           onDrop={dropOnPane}
         >
           {entries.length === 0 && !loading ? (
-            <p className="flist__empty">空目录</p>
+            <p className="flist__empty">{tr("空目录")}</p>
           ) : (
             <div className="flist__inner" style={{ height: entries.length * ROW_H }}>
               {entries.slice(visible.start, visible.end).map((entry, offset) => {
@@ -494,7 +495,7 @@ export function FilePane({
               })}
             </div>
           )}
-          {loading ? <div className="flist__loading">加载中…</div> : null}
+          {loading ? <div className="flist__loading">{tr("加载中…")}</div> : null}
           {marquee && marquee.width > 3 && marquee.height > 3 ? (
             <div
               className="marquee"
@@ -519,7 +520,7 @@ export function FilePane({
       {note ? <div className="fpane__note">{note}</div> : null}
 
       <footer className="ffoot">
-        <span>{entries.length} items</span>
+        <span>{tr("{n} 项", { n: entries.length })}</span>
         <span className="grow" />
         <span className="num">
           {total !== undefined && total !== entries.length
@@ -528,9 +529,10 @@ export function FilePane({
         </span>
         <span className="st">
           <span className={side === "remote" && idle ? "dot off" : "dot"} />
-          {side === "remote" ? (idle ? "未连接" : "SFTP · 21 ms") : "本地磁盘"}
+          {side === "remote" ? (idle ? tr("未连接") : "SFTP · 21 ms") : tr("本地磁盘")}
         </span>
       </footer>
     </section>
   );
 }
+

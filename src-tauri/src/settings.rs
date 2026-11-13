@@ -10,13 +10,15 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     /// 关闭窗口时最小化到托盘（默认关闭：关闭即退出）。
     pub close_to_tray: bool,
     /// 首次驻留提示是否已展示。
     pub tray_hint_shown: bool,
+    /// 界面与托盘语言（None = 跟随系统，由前端检测后同步过来）。
+    pub locale: Option<String>,
 }
 
 pub struct SettingsStore {
@@ -38,11 +40,16 @@ impl SettingsStore {
     }
 
     pub fn get(&self) -> Settings {
-        *self.data.lock().unwrap_or_else(|e| e.into_inner())
+        self.data.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn set_close_to_tray(&self, value: bool) {
         self.mutate(|s| s.close_to_tray = value);
+    }
+
+    pub fn set_locale(&self, locale: &str) {
+        let value = locale.to_string();
+        self.mutate(|s| s.locale = Some(value));
     }
 
     pub fn mark_hint_shown(&self) {
@@ -53,7 +60,7 @@ impl SettingsStore {
         let snapshot = {
             let mut guard = self.data.lock().unwrap_or_else(|e| e.into_inner());
             f(&mut guard);
-            *guard
+            guard.clone()
         };
         if let Ok(raw) = serde_json::to_string_pretty(&snapshot) {
             let _ = fs::write(&self.path, raw);

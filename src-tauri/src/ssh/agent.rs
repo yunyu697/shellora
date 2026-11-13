@@ -30,8 +30,13 @@ pub fn authenticate<'a>(
         )
         .await
         {
-            Err(_) => return Err(agent_err("ssh-agent 响应超时")),
-            Ok(Err(e)) => return Err(agent_err(format!("ssh-agent 读取 identities 失败：{e}"))),
+            Err(_) => return Err(agent_err(crate::i18n::t("ssh-agent 响应超时"))),
+            Ok(Err(e)) => {
+                return Err(agent_err(crate::i18n::t_args(
+                    "ssh-agent 读取 identities 失败：{error}",
+                    &[("error", &e.to_string())],
+                )))
+            }
             Ok(Ok(ids)) => ids,
         };
 
@@ -40,11 +45,16 @@ pub fn authenticate<'a>(
             .authenticate_publickey_with(username, key, &mut agent)
             .boxed()
             .await
-            .map_err(|e| agent_err(format!("ssh-agent 认证失败：{e}")))?;
+            .map_err(|e| {
+                agent_err(crate::i18n::t_args(
+                    "ssh-agent 认证失败：{error}",
+                    &[("error", &e.to_string())],
+                ))
+            })?;
         if !accepted {
             return Err(ErrorDto::new(
                 ErrorCode::AuthFailed,
-                "认证失败：ssh-agent 密钥被服务器拒绝",
+                crate::i18n::t("认证失败：ssh-agent 密钥被服务器拒绝"),
             ));
         }
         Ok(())
@@ -60,7 +70,7 @@ fn select_identity(
     hint: Option<&str>,
 ) -> Result<ssh_key::PublicKey, ErrorDto> {
     if identities.is_empty() {
-        return Err(agent_err("ssh-agent 中没有可用的 identity"));
+        return Err(agent_err(crate::i18n::t("ssh-agent 中没有可用的 identity")));
     }
     let Some(hint) = hint.filter(|h| !h.is_empty()) else {
         return Ok(identities[0].clone());
@@ -72,7 +82,10 @@ fn select_identity(
             return Ok(key.clone());
         }
     }
-    Err(agent_err(format!("ssh-agent 中找不到匹配的 identity：{hint}")))
+    Err(agent_err(crate::i18n::t_args(
+        "ssh-agent 中找不到匹配的 identity：{hint}",
+        &[("hint", hint)],
+    )))
 }
 
 async fn connect(socket: Option<String>) -> Result<DynamicAgent, ErrorDto> {
@@ -80,7 +93,12 @@ async fn connect(socket: Option<String>) -> Result<DynamicAgent, ErrorDto> {
         if let Some(addr) = endpoint.strip_prefix("tcp://") {
             let stream = tokio::net::TcpStream::connect(addr)
                 .await
-                .map_err(|e| agent_err(format!("无法连接 ssh-agent {addr}：{e}")))?;
+                .map_err(|e| {
+                    agent_err(crate::i18n::t_args(
+                        "无法连接 ssh-agent {addr}：{error}",
+                        &[("addr", addr), ("error", &e.to_string())],
+                    ))
+                })?;
             return Ok(AgentClient::connect(Box::new(stream)).dynamic());
         }
     }
@@ -89,10 +107,13 @@ async fn connect(socket: Option<String>) -> Result<DynamicAgent, ErrorDto> {
     {
         let path = socket
             .or_else(|| std::env::var("SSH_AUTH_SOCK").ok())
-            .ok_or_else(|| agent_err("未找到 ssh-agent：SSH_AUTH_SOCK 未设置"))?;
-        let agent = AgentClient::connect_uds(path)
-            .await
-            .map_err(|e| agent_err(format!("无法连接 ssh-agent：{e}")))?;
+            .ok_or_else(|| agent_err(crate::i18n::t("未找到 ssh-agent：SSH_AUTH_SOCK 未设置")))?;
+        let agent = AgentClient::connect_uds(path).await.map_err(|e| {
+            agent_err(crate::i18n::t_args(
+                "无法连接 ssh-agent：{error}",
+                &[("error", &e.to_string())],
+            ))
+        })?;
         Ok(agent.dynamic())
     }
 

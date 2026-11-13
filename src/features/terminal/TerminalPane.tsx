@@ -6,14 +6,22 @@ import { readToken } from "../../theme";
 import { analyzePaste, type PasteAnalysis } from "./pasteGuard";
 import { TERMINAL_THEMES, loadStoredThemeId, storeThemeId } from "./themes";
 import { useTerminal, type SearchResultEvent } from "./useTerminal";
+import { tr } from "../../i18n";
 
-const STATE_LABEL: Record<ConnState, string> = {
-  connecting: "连接中…",
-  ready: "已连接",
-  suspended: "已挂起",
-  closed: "已断开",
-  failed: "连接失败",
-};
+function stateLabel(state: ConnState): string {
+  switch (state) {
+    case "connecting":
+      return tr("连接中…");
+    case "ready":
+      return tr("已连接");
+    case "suspended":
+      return tr("已挂起");
+    case "closed":
+      return tr("已断开");
+    case "failed":
+      return tr("连接失败");
+  }
+}
 
 const COPY_ON_SELECT_KEY = "shellora.copyOnSelect";
 
@@ -120,8 +128,8 @@ export function TerminalPane({
         }
         void navigator.clipboard
           ?.writeText(uri)
-          .then(() => setNotice(`已复制 ${uri}，请在编辑器中打开`))
-          .catch(() => setNotice(`文件链接：${uri}`));
+          .then(() => setNotice(tr("已复制 {uri}，请在编辑器中打开", { uri })))
+          .catch(() => setNotice(tr("文件链接：{uri}", { uri })));
       },
     },
     { scrollback: tabIndex > 8 ? 5000 : 10000, themeId, copyOnSelect },
@@ -196,12 +204,12 @@ export function TerminalPane({
       <header className="pane__bar">
         <span className={`dot dot--${state.state}`} aria-hidden />
         <span className="pane__title">{title}</span>
-        <span className="pane__state">{STATE_LABEL[state.state]}</span>
+        <span className="pane__state">{stateLabel(state.state)}</span>
         {state.reason ? <span className="pane__reason">{state.reason}</span> : null}
         <span className="pane__spacer" />
         <select
           className="pane__theme"
-          aria-label="终端主题"
+          aria-label={tr("终端主题")}
           value={themeId}
           onChange={(ev) => setThemeId(ev.target.value)}
         >
@@ -217,16 +225,16 @@ export function TerminalPane({
           aria-pressed={searchOpen}
           onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
         >
-          搜索
+          {tr("搜索")}
         </button>
         {tabId ? (
           <button type="button" className="btn btn--ghost" onClick={onOpenFiles}>
-            文件
+            {tr("文件")}
           </button>
         ) : null}
         {canRetry ? (
           <button type="button" className="btn btn--ghost" onClick={api.retry}>
-            重连
+            {tr("重连")}
           </button>
         ) : null}
       </header>
@@ -236,7 +244,7 @@ export function TerminalPane({
           <input
             className="pane__search-input"
             autoFocus
-            placeholder="搜索缓冲区"
+            placeholder={tr("搜索缓冲区")}
             value={query}
             onChange={(ev) => {
               setQuery(ev.target.value);
@@ -265,10 +273,10 @@ export function TerminalPane({
             {results.resultCount > 0 ? `${results.resultIndex + 1}/${results.resultCount}` : "0/0"}
           </span>
           <button type="button" className="btn btn--ghost" onClick={() => runSearch(false)}>
-            下一个
+            {tr("下一个")}
           </button>
           <button type="button" className="btn btn--ghost" onClick={() => runSearch(true)}>
-            上一个
+            {tr("上一个")}
           </button>
           <label className="pane__check">
             <input
@@ -279,7 +287,7 @@ export function TerminalPane({
                 if (query) runSearch(false);
               }}
             />
-            区分大小写
+            {tr("区分大小写")}
           </label>
           <label className="pane__check">
             <input
@@ -287,7 +295,7 @@ export function TerminalPane({
               checked={copyOnSelect}
               onChange={(ev) => setCopyOnSelect(ev.target.checked)}
             />
-            选中即复制
+            {tr("选中即复制")}
           </label>
         </div>
       ) : null}
@@ -296,7 +304,7 @@ export function TerminalPane({
         <div className="pane__notice">
           <span>{notice}</span>
           <button type="button" className="btn btn--ghost" onClick={() => setNotice(null)}>
-            关闭
+            {tr("关闭")}
           </button>
         </div>
       ) : null}
@@ -304,20 +312,20 @@ export function TerminalPane({
       <div ref={hostRef} className="pane__term" />
 
       {pendingPaste ? (
-        <div className="paste-guard" role="dialog" aria-modal="true" aria-label="粘贴确认">
+        <div className="paste-guard" role="dialog" aria-modal="true" aria-label={tr("粘贴确认")}>
           <div className="paste-guard__card">
-            <h3 className="paste-guard__title">粘贴确认</h3>
+            <h3 className="paste-guard__title">{tr("粘贴确认")}</h3>
             <p className="paste-guard__summary">{pendingPaste.analysis.summary}</p>
             <pre className="paste-guard__preview">{preview}</pre>
             <p className="paste-guard__hint">
-              含换行的粘贴可能立即在多行 shell 或编辑器中执行，请确认内容来源可信。
+              {tr("含换行的粘贴可能立即在多行 shell 或编辑器中执行，请确认内容来源可信。")}
             </p>
             <div className="paste-guard__actions">
               <button type="button" className="btn btn--ghost" onClick={() => setPendingPaste(null)}>
-                取消
+                {tr("取消")}
               </button>
               <button type="button" className="btn btn--primary" onClick={confirmPaste}>
-                发送
+                {tr("发送")}
               </button>
             </div>
           </div>
@@ -326,3 +334,4 @@ export function TerminalPane({
     </section>
   );
 }
+

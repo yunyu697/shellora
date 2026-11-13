@@ -205,16 +205,18 @@ pub async fn walk_tree(
             if is_dir {
                 let child_depth = depth + 1;
                 if child_depth > max_depth {
-                    return Err(limit_exceeded(format!(
-                        "目录层级超过上限 {max_depth}（在 {rel}）"
+                    return Err(limit_exceeded(crate::i18n::t_args(
+                        "目录层级超过上限 {max_depth}（在 {rel}）",
+                        &[("max_depth", &max_depth.to_string()), ("rel", &rel)],
                     )));
                 }
                 tree.dirs.push(rel.clone());
                 stack.push((join_remote(&dir_abs, &name), rel, child_depth));
             } else {
                 if tree.files.len() >= max_files {
-                    return Err(limit_exceeded(format!(
-                        "文件数超过上限 {max_files}（在 {rel}）"
+                    return Err(limit_exceeded(crate::i18n::t_args(
+                        "文件数超过上限 {max_files}（在 {rel}）",
+                        &[("max_files", &max_files.to_string()), ("rel", &rel)],
                     )));
                 }
                 tree.files.push(RemoteFile {

@@ -65,7 +65,7 @@ fn resolve_auth(
     }
     Err(ErrorDto::new(
         ErrorCode::AuthFailed,
-        "未提供认证方式：请填写密码、私钥或启用 ssh-agent",
+        crate::i18n::t("未提供认证方式：请填写密码、私钥或启用 ssh-agent"),
     ))
 }
 
@@ -209,7 +209,7 @@ async fn open_over(
         Err(_) => {
             return Err(ErrorDto::new(
                 ErrorCode::NetTimeout,
-                format!("与 {host} 的 SSH 握手超时"),
+                crate::i18n::t_args("与 {host} 的 SSH 握手超时", &[("host", &host)]),
             ))
         }
         Ok(Err(e)) => return Err(map_russh_error(e, &host)),
@@ -220,8 +220,9 @@ async fn open_over(
     if let Some(store) = store {
         let key = observed.lock().ok().and_then(|slot| slot.clone());
         let Some(key) = key else {
-            return Err(ErrorDto::internal(format!(
-                "与 {host} 握手结束但未获得服务端主机密钥"
+            return Err(ErrorDto::internal(crate::i18n::t_args(
+                "与 {host} 握手结束但未获得服务端主机密钥",
+                &[("host", &host)],
             )));
         };
         knownhost::verify(store, policy, &host, port, &key)?;
@@ -245,14 +246,25 @@ fn authenticate<'a>(
             if !ok {
                 return Err(ErrorDto::new(
                     ErrorCode::AuthFailed,
-                    format!("认证失败：{username}@{host} 密码不正确"),
+                    crate::i18n::t_args(
+                        "认证失败：{username}@{host} 密码不正确",
+                        &[("username", &username), ("host", &host)],
+                    ),
                 ));
             }
         }
         AuthSpec::Key(input) => {
             let key = keys::load(&input.path, input.passphrase.as_deref())?;
             let key = russh::keys::key::PrivateKeyWithHashAlg::new(Arc::new(key), None)
-                .map_err(|e| ErrorDto::new(ErrorCode::AuthFailed, format!("私钥不可用于认证：{e}")))?;
+                .map_err(|e| {
+                    ErrorDto::new(
+                        ErrorCode::AuthFailed,
+                        crate::i18n::t_args(
+                            "私钥不可用于认证：{error}",
+                            &[("error", &e.to_string())],
+                        ),
+                    )
+                })?;
             let ok = handle
                 .authenticate_publickey(username.clone(), key)
                 .await
@@ -260,7 +272,10 @@ fn authenticate<'a>(
             if !ok {
                 return Err(ErrorDto::new(
                     ErrorCode::AuthFailed,
-                    format!("认证失败：{username}@{host} 未接受该私钥"),
+                    crate::i18n::t_args(
+                        "认证失败：{username}@{host} 未接受该私钥",
+                        &[("username", &username), ("host", &host)],
+                    ),
                 ));
             }
         }
@@ -285,11 +300,17 @@ fn map_io_error(err: std::io::Error, host: &str) -> ErrorDto {
         std::io::ErrorKind::ConnectionRefused => {
             return ErrorDto::new(
                 ErrorCode::NetRefused,
-                format!("{host} 拒绝连接（端口未开放或被防火墙拦截）"),
+                crate::i18n::t_args(
+                    "{host} 拒绝连接（端口未开放或被防火墙拦截）",
+                    &[("host", host)],
+                ),
             )
         }
         std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock => {
-            return ErrorDto::new(ErrorCode::NetTimeout, format!("连接 {host} 超时"))
+            return ErrorDto::new(
+                ErrorCode::NetTimeout,
+                crate::i18n::t_args("连接 {host} 超时", &[("host", host)]),
+            )
         }
         _ => {}
     }
@@ -298,14 +319,23 @@ fn map_io_error(err: std::io::Error, host: &str) -> ErrorDto {
         || err.raw_os_error().is_some_and(|code| code == 11001)
         || err.to_string().contains("dns error")
     {
-        return ErrorDto::new(ErrorCode::NetDns, format!("无法解析主机 {host}"));
+        return ErrorDto::new(
+            ErrorCode::NetDns,
+            crate::i18n::t_args("无法解析主机 {host}", &[("host", host)]),
+        );
     }
-    ErrorDto::internal(format!("SSH 连接失败：{err}"))
+    ErrorDto::internal(crate::i18n::t_args(
+        "SSH 连接失败：{error}",
+        &[("error", &err.to_string())],
+    ))
 }
 
 fn map_russh_error(err: russh::Error, host: &str) -> ErrorDto {
     if let russh::Error::IO(io) = &err {
         return map_io_error(std::io::Error::new(io.kind(), io.to_string()), host);
     }
-    ErrorDto::internal(format!("SSH 连接失败：{err}"))
+    ErrorDto::internal(crate::i18n::t_args(
+        "SSH 连接失败：{error}",
+        &[("error", &err.to_string())],
+    ))
 }

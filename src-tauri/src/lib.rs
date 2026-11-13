@@ -6,6 +6,7 @@ pub mod caption;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod i18n;
 pub mod ipc;
 pub mod knownhost;
 pub mod lifecycle;
@@ -135,6 +136,7 @@ pub fn run() {
             ipc::commands::ui_action,
             ipc::commands::tray_settings_get,
             ipc::commands::tray_settings_set,
+            ipc::commands::set_locale,
             ipc::commands::tray_sync,
         ])
         .build(tauri::generate_context!())

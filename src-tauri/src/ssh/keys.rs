@@ -12,7 +12,13 @@ use crate::error::{ErrorCode, ErrorDto};
 /// 读取并解析私钥文件。
 pub fn load(path: &str, passphrase: Option<&str>) -> Result<PrivateKey, ErrorDto> {
     let text = std::fs::read_to_string(path).map_err(|e| {
-        ErrorDto::new(ErrorCode::AuthFailed, format!("无法读取私钥 {path}：{e}"))
+        ErrorDto::new(
+            ErrorCode::AuthFailed,
+            crate::i18n::t_args(
+                "无法读取私钥 {path}：{error}",
+                &[("path", path), ("error", &e.to_string())],
+            ),
+        )
     })?;
     if is_ppk(&text) {
         return parse_ppk(&text);
@@ -20,9 +26,12 @@ pub fn load(path: &str, passphrase: Option<&str>) -> Result<PrivateKey, ErrorDto
     russh::keys::decode_secret_key(&text, passphrase).map_err(|e| {
         let message = match e {
             russh::keys::Error::KeyIsEncrypted => {
-                "私钥已加密：请提供口令（passphrase）".to_string()
+                crate::i18n::t("私钥已加密：请提供口令（passphrase）")
             }
-            other => format!("私钥解析失败：{other}"),
+            other => crate::i18n::t_args(
+                "私钥解析失败：{error}",
+                &[("error", &other.to_string())],
+            ),
         };
         ErrorDto::new(ErrorCode::AuthFailed, message)
     })
@@ -58,19 +67,20 @@ fn parse_ppk(text: &str) -> Result<PrivateKey, ErrorDto> {
     }
 
     if header.is_empty() {
-        return Err(auth_err("PPK 文件头缺失"));
+        return Err(auth_err(crate::i18n::t("PPK 文件头缺失")));
     }
     if header.get("Encryption").map(String::as_str) != Some("none") {
-        return Err(auth_err(
+        return Err(auth_err(crate::i18n::t(
             "暂不支持加密的 PPK 私钥：请用 PuTTYgen 去掉口令，或导出为 OpenSSH 格式",
-        ));
+        )));
     }
 
     let public_blob = read_block(&lines, &mut idx, "Public-Lines")?;
     let private_blob = read_block(&lines, &mut idx, "Private-Lines")?;
 
     let mut cur = &public_blob[..];
-    let algorithm = read_string(&mut cur).ok_or_else(|| auth_err("PPK 公钥缺少算法名"))?;
+    let algorithm = read_string(&mut cur)
+        .ok_or_else(|| auth_err(crate::i18n::t("PPK 公钥缺少算法名")))?;
 
     let mut out = Vec::new();
     out.extend_from_slice(b"openssh-key-v1\0");
@@ -89,12 +99,42 @@ fn parse_ppk(text: &str) -> Result<PrivateKey, ErrorDto> {
     let mut priv_cur = &private_blob[..];
     match algorithm.as_slice() {
         b"ssh-rsa" => {
-            let e = read_mpint(&mut cur).ok_or_else(|| auth_err("PPK 公钥缺少 e"))?;
-            let n = read_mpint(&mut cur).ok_or_else(|| auth_err("PPK 公钥缺少 n"))?;
-            let d = read_mpint(&mut priv_cur).ok_or_else(|| auth_err("PPK 私钥缺少 d"))?;
-            let p = read_mpint(&mut priv_cur).ok_or_else(|| auth_err("PPK 私钥缺少 p"))?;
-            let q = read_mpint(&mut priv_cur).ok_or_else(|| auth_err("PPK 私钥缺少 q"))?;
-            let iqmp = read_mpint(&mut priv_cur).ok_or_else(|| auth_err("PPK 私钥缺少 iqmp"))?;
+            let e = read_mpint(&mut cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 公钥缺少 {field}",
+                    &[("field", "e")],
+                ))
+            })?;
+            let n = read_mpint(&mut cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 公钥缺少 {field}",
+                    &[("field", "n")],
+                ))
+            })?;
+            let d = read_mpint(&mut priv_cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 私钥缺少 {field}",
+                    &[("field", "d")],
+                ))
+            })?;
+            let p = read_mpint(&mut priv_cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 私钥缺少 {field}",
+                    &[("field", "p")],
+                ))
+            })?;
+            let q = read_mpint(&mut priv_cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 私钥缺少 {field}",
+                    &[("field", "q")],
+                ))
+            })?;
+            let iqmp = read_mpint(&mut priv_cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 私钥缺少 {field}",
+                    &[("field", "iqmp")],
+                ))
+            })?;
             // OpenSSH 私钥的 RSA 字段顺序：n, e, d, iqmp, p, q。
             put_mpint(&mut priv_blob, &n);
             put_mpint(&mut priv_blob, &e);
@@ -104,12 +144,14 @@ fn parse_ppk(text: &str) -> Result<PrivateKey, ErrorDto> {
             put_mpint(&mut priv_blob, &q);
         }
         b"ssh-ed25519" => {
-            let pub_key = read_string(&mut cur).ok_or_else(|| auth_err("PPK 公钥缺少公钥值"))?;
-            let key = read_mpint(&mut priv_cur).ok_or_else(|| auth_err("PPK 私钥缺少密钥值"))?;
+            let pub_key = read_string(&mut cur)
+                .ok_or_else(|| auth_err(crate::i18n::t("PPK 公钥缺少公钥值")))?;
+            let key = read_mpint(&mut priv_cur)
+                .ok_or_else(|| auth_err(crate::i18n::t("PPK 私钥缺少密钥值")))?;
             if key.len() > 64 {
-                return Err(auth_err(format!(
-                    "Ed25519 PPK 私钥长度异常（{} 字节，应为 64）",
-                    key.len()
+                return Err(auth_err(crate::i18n::t_args(
+                    "Ed25519 PPK 私钥长度异常（{size} 字节，应为 64）",
+                    &[("size", &key.len().to_string())],
                 )));
             }
             // mpint 会吃掉前导 0，按 64 字节补回；PPK 里 ed25519 私钥是 seed+pub。
@@ -119,17 +161,24 @@ fn parse_ppk(text: &str) -> Result<PrivateKey, ErrorDto> {
             put_string(&mut priv_blob, &key64);
         }
         b"ecdsa-sha2-nistp256" | b"ecdsa-sha2-nistp384" | b"ecdsa-sha2-nistp521" => {
-            let curve = read_string(&mut cur).ok_or_else(|| auth_err("PPK 公钥缺少曲线名"))?;
-            let point = read_string(&mut cur).ok_or_else(|| auth_err("PPK 公钥缺少曲线点"))?;
-            let d = read_mpint(&mut priv_cur).ok_or_else(|| auth_err("PPK 私钥缺少 d"))?;
+            let curve = read_string(&mut cur)
+                .ok_or_else(|| auth_err(crate::i18n::t("PPK 公钥缺少曲线名")))?;
+            let point = read_string(&mut cur)
+                .ok_or_else(|| auth_err(crate::i18n::t("PPK 公钥缺少曲线点")))?;
+            let d = read_mpint(&mut priv_cur).ok_or_else(|| {
+                auth_err(crate::i18n::t_args(
+                    "PPK 私钥缺少 {field}",
+                    &[("field", "d")],
+                ))
+            })?;
             put_string(&mut priv_blob, &curve);
             put_string(&mut priv_blob, &point);
             put_mpint(&mut priv_blob, &d);
         }
         other => {
-            return Err(auth_err(format!(
-                "PPK 算法不受支持：{}",
-                String::from_utf8_lossy(other)
+            return Err(auth_err(crate::i18n::t_args(
+                "PPK 算法不受支持：{algorithm}",
+                &[("algorithm", &String::from_utf8_lossy(other))],
             )))
         }
     }
@@ -144,30 +193,48 @@ fn parse_ppk(text: &str) -> Result<PrivateKey, ErrorDto> {
     }
     put_string(&mut out, &priv_blob);
 
-    PrivateKey::from_bytes(&out)
-        .map_err(|e| auth_err(format!("PPK 私钥校验失败：{e}")))
+    PrivateKey::from_bytes(&out).map_err(|e| {
+        auth_err(crate::i18n::t_args(
+            "PPK 私钥校验失败：{error}",
+            &[("error", &e.to_string())],
+        ))
+    })
 }
 
 fn read_block(lines: &[&str], idx: &mut usize, name: &str) -> Result<Vec<u8>, ErrorDto> {
-    let header = lines
-        .get(*idx)
-        .ok_or_else(|| auth_err(format!("PPK 缺少 {name} 段")))?;
+    let header = lines.get(*idx).ok_or_else(|| {
+        auth_err(crate::i18n::t_args(
+            "PPK 缺少 {name} 段",
+            &[("name", name)],
+        ))
+    })?;
     let count: usize = header
         .split_once(':')
         .and_then(|(k, v)| (k.trim() == name).then(|| v.trim().parse().ok()).flatten())
-        .ok_or_else(|| auth_err(format!("PPK {name} 行格式错误")))?;
+        .ok_or_else(|| {
+            auth_err(crate::i18n::t_args(
+                "PPK {name} 行格式错误",
+                &[("name", name)],
+            ))
+        })?;
     *idx += 1;
     let mut payload = String::new();
     for _ in 0..count {
-        let line = lines
-            .get(*idx)
-            .ok_or_else(|| auth_err(format!("PPK {name} 数据不完整")))?;
+        let line = lines.get(*idx).ok_or_else(|| {
+            auth_err(crate::i18n::t_args(
+                "PPK {name} 数据不完整",
+                &[("name", name)],
+            ))
+        })?;
         payload.push_str(line.trim());
         *idx += 1;
     }
-    data_encoding::BASE64
-        .decode(payload.as_bytes())
-        .map_err(|e| auth_err(format!("PPK {name} base64 解码失败：{e}")))
+    data_encoding::BASE64.decode(payload.as_bytes()).map_err(|e| {
+        auth_err(crate::i18n::t_args(
+            "PPK {name} base64 解码失败：{error}",
+            &[("name", name), ("error", &e.to_string())],
+        ))
+    })
 }
 
 /// 读取 SSH wire 格式的 string（4 字节长度 + 内容）。

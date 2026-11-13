@@ -43,6 +43,7 @@ import { TraySettings } from "./features/settings/TraySettings";
 import { applyUiTheme, loadUiTheme, storeUiTheme, type UiTheme } from "./theme";
 import brandDark from "./assets/brand/shellora-dark.svg";
 import brandLight from "./assets/brand/shellora-light.svg";
+import { tr } from "./i18n";
 
 const MAX_TABS = 30;
 const RAIL_KEY = "shellora.railCollapsed";
@@ -63,7 +64,7 @@ type View = "files" | "connect";
 type RailTab = "all" | "saved" | "recent";
 
 const DEFAULT_FORM = {
-  name: "本地夹具",
+  name: tr("本地夹具"),
   host: "127.0.0.1",
   port: "2222",
   username: "alice",
@@ -111,11 +112,11 @@ interface HostKeyPrompt {
 }
 
 const STATE_TEXT: Record<string, string> = {
-  connecting: "连接中",
-  ready: "已连接",
-  suspended: "已挂起",
-  closed: "已断开",
-  failed: "连接失败",
+  connecting: tr("连接中"),
+  ready: tr("已连接"),
+  suspended: tr("已挂起"),
+  closed: tr("已断开"),
+  failed: tr("连接失败"),
 };
 
 function errorText(err: unknown): string {
@@ -125,9 +126,9 @@ function errorText(err: unknown): string {
 }
 
 function authLabel(input: ConnectionInput): string {
-  if (input.privateKey) return "私钥";
+  if (input.privateKey) return tr("私钥");
   if (input.agent) return "agent";
-  return "密码";
+  return tr("密码");
 }
 
 applyUiTheme(loadUiTheme(window.localStorage));
@@ -196,8 +197,8 @@ function WindowControls({
       <button
         type="button"
         className="wc"
-        aria-label="最小化"
-        title="最小化"
+        aria-label={tr("最小化")}
+        title={tr("最小化")}
         onClick={() => {
           if (IS_TAURI) void getCurrentWindow().minimize();
         }}
@@ -209,8 +210,8 @@ function WindowControls({
       <button
         type="button"
         className={hover ? "wc wc--hover" : "wc"}
-        aria-label={maximized ? "还原" : "最大化"}
-        title={maximized ? "还原" : "最大化"}
+        aria-label={tr(maximized ? "还原" : "最大化")}
+        title={tr(maximized ? "还原" : "最大化")}
         onClick={onToggle}
       >
         {maximized ? (
@@ -227,8 +228,8 @@ function WindowControls({
       <button
         type="button"
         className="wc wc--close"
-        aria-label="关闭"
-        title="关闭"
+        aria-label={tr("关闭")}
+        title={tr("关闭")}
         onClick={() => {
           if (IS_TAURI) void getCurrentWindow().close();
         }}
@@ -582,7 +583,8 @@ export default function App() {
           setView("files");
         });
         const offHidden = await listen<{ first: boolean }>("tray://hidden", (ev) => {
-          if (ev.payload?.first) setTrayToast("Shellora 仍在后台运行，可从托盘图标恢复");
+          if (ev.payload?.first)
+            setTrayToast(tr("Shellora 仍在后台运行，可从托盘图标恢复"));
         });
         if (!alive) {
           offNew();
@@ -692,7 +694,10 @@ export default function App() {
 
   useEffect(() => {
     void refreshLibrary().catch((err) =>
-      setMessage({ tone: "warn", text: `会话库不可用：${errorText(err)}` }),
+      setMessage({
+        tone: "warn",
+        text: tr("会话库不可用：{msg}", { msg: errorText(err) }),
+      }),
     );
   }, [refreshLibrary]);
 
@@ -731,7 +736,7 @@ export default function App() {
     if (form.authMode === "key") {
       const path = form.keyPath.trim();
       if (!path) {
-        setMessage({ tone: "warn", text: "私钥路径不能为空" });
+        setMessage({ tone: "warn", text: tr("私钥路径不能为空") });
         return null;
       }
       return {
@@ -749,7 +754,7 @@ export default function App() {
       };
     }
     if (!form.password) {
-      setMessage({ tone: "warn", text: "密码为空：按 D1 密码不入库，请本次输入" });
+      setMessage({ tone: "warn", text: tr("密码为空：按 D1 密码不入库，请本次输入") });
       return null;
     }
     return { password: form.password };
@@ -760,7 +765,7 @@ export default function App() {
     if (form.proxyKind === "none") return undefined;
     const host = form.proxyHost.trim();
     if (!host) {
-      setMessage({ tone: "warn", text: "代理主机不能为空" });
+      setMessage({ tone: "warn", text: tr("代理主机不能为空") });
       return null;
     }
     const port = Number.parseInt(form.proxyPort, 10);
@@ -780,7 +785,7 @@ export default function App() {
       const host = j.host.trim();
       const username = j.username.trim();
       if (!host || !username) {
-        setMessage({ tone: "warn", text: "跳板的主机与用户名不能为空" });
+        setMessage({ tone: "warn", text: tr("跳板的主机与用户名不能为空") });
         return null;
       }
       const port = Number.parseInt(j.port, 10);
@@ -801,7 +806,7 @@ export default function App() {
     username: string,
   ): ConnectionInput | null => {
     if (!host || !username) {
-      setMessage({ tone: "warn", text: "主机与用户名不能为空" });
+      setMessage({ tone: "warn", text: tr("主机与用户名不能为空") });
       return null;
     }
     const auth = buildAuth();
@@ -829,7 +834,7 @@ export default function App() {
 
   const openTab = (input: ConnectionInput, connectionId: string | null) => {
     if (tabs.length >= MAX_TABS) {
-      setMessage({ tone: "warn", text: `已达上限 ${MAX_TABS}，请先关闭标签` });
+      setMessage({ tone: "warn", text: tr("已达上限 {max}，请先关闭标签", { max: MAX_TABS }) });
       return;
     }
     const key = `tab-${++seqRef.current}`;
@@ -876,7 +881,7 @@ export default function App() {
         setHostKeyPrompt({ kind: dto.details.kind, input, connectionId, details: dto.details });
         setMessage(null);
       } else {
-        setMessage({ tone: "warn", text: `连接失败：${errorText(err)}` });
+        setMessage({ tone: "warn", text: tr("连接失败：{msg}", { msg: errorText(err) }) });
       }
     } finally {
       setBusy(false);
@@ -904,10 +909,14 @@ export default function App() {
       setHostKeyPrompt(null);
       setMessage({
         tone: "hint",
-        text: `已删除 ${details.host}:${details.port} 的信任记录（${stale.length} 条），请重新点击连接。`,
+        text: tr("已删除 {host}:{port} 的信任记录（{n} 条），请重新点击连接。", {
+          host: details.host,
+          port: details.port,
+          n: stale.length,
+        }),
       });
     } catch (err) {
-      setMessage({ tone: "warn", text: `删除失败：${errorText(err)}` });
+      setMessage({ tone: "warn", text: tr("删除失败：{msg}", { msg: errorText(err) }) });
     } finally {
       setBusy(false);
     }
@@ -923,12 +932,12 @@ export default function App() {
     const input = buildInput();
     if (!input) return;
     setBusy(true);
-    setMessage({ tone: "hint", text: "测试连接中（仅连接 + 认证，15s 超时）…" });
+    setMessage({ tone: "hint", text: tr("测试连接中（仅连接 + 认证，15s 超时）…") });
     try {
       await connTest(input);
-      setMessage({ tone: "hint", text: "测试通过：连接与认证成功" });
+      setMessage({ tone: "hint", text: tr("测试通过：连接与认证成功") });
     } catch (err) {
-      setMessage({ tone: "warn", text: `测试失败：${errorText(err)}` });
+      setMessage({ tone: "warn", text: tr("测试失败：{msg}", { msg: errorText(err) }) });
     } finally {
       setBusy(false);
     }
@@ -938,7 +947,7 @@ export default function App() {
     const host = form.host.trim();
     const username = form.username.trim();
     if (!host || !username) {
-      setMessage({ tone: "warn", text: "主机与用户名不能为空" });
+      setMessage({ tone: "warn", text: tr("主机与用户名不能为空") });
       return;
     }
     const port = Number.parseInt(form.port, 10);
@@ -954,9 +963,12 @@ export default function App() {
         credentialRefId: null,
       });
       await refreshLibrary();
-      setMessage({ tone: "hint", text: `已保存连接「${name}」（密码不入库，下次连接时输入）` });
+      setMessage({
+        tone: "hint",
+        text: tr("已保存连接「{name}」（密码不入库，下次连接时输入）", { name }),
+      });
     } catch (err) {
-      setMessage({ tone: "warn", text: `保存失败：${errorText(err)}` });
+      setMessage({ tone: "warn", text: tr("保存失败：{msg}", { msg: errorText(err) }) });
     } finally {
       setBusy(false);
     }
@@ -968,10 +980,13 @@ export default function App() {
       await refreshLibrary();
       setMessage({
         tone: "hint",
-        text: removed > 0 ? `已删除连接「${row.name}」，其会话一并删除` : "连接不存在",
+        text:
+          removed > 0
+            ? tr("已删除连接「{name}」，其会话一并删除", { name: row.name })
+            : tr("连接不存在"),
       });
     } catch (err) {
-      setMessage({ tone: "warn", text: `删除失败：${errorText(err)}` });
+      setMessage({ tone: "warn", text: tr("删除失败：{msg}", { msg: errorText(err) }) });
     }
   };
 
@@ -984,7 +999,7 @@ export default function App() {
       username: row.username,
     }));
     setView("connect");
-    setMessage({ tone: "hint", text: "已载入连接信息，请确认密码后连接" });
+    setMessage({ tone: "hint", text: tr("已载入连接信息，请确认密码后连接") });
   };
 
   const openConnection = (row: ConnectionRow) => {
@@ -995,7 +1010,7 @@ export default function App() {
   const openSession = (row: SessionRow) => {
     const connection = connections.find((c) => c.id === row.connectionId);
     if (!connection) {
-      setMessage({ tone: "warn", text: "会话所属连接已不存在" });
+      setMessage({ tone: "warn", text: tr("会话所属连接已不存在") });
       return;
     }
     const input = makeInput(connection.host, connection.port, connection.username);
@@ -1050,7 +1065,7 @@ export default function App() {
 
   const terminalTitle = activeTab
     ? `${activeTab.label} · ${STATE_TEXT[activeTab.state.state] ?? activeTab.state.state}`
-    : "无活动会话";
+    : tr("无活动会话");
 
   const onTitleBarMouseDown = (ev: ReactMouseEvent) => {
     if (!IS_TAURI || ev.button !== 0) return;
@@ -1075,35 +1090,35 @@ export default function App() {
           <img src={theme === "dark" ? brandDark : brandLight} alt="" draggable={false} />
         </div>
         <h1 className="brand">Shellora</h1>
-        <nav className="navpills" aria-label="主导航">
+        <nav className="navpills" aria-label={tr("主导航")}>
           <button
             type="button"
             className={view === "files" ? "navpill on" : "navpill"}
             onClick={() => setView("files")}
           >
-            <Icon name="folder" /> Files
+            <Icon name="folder" /> {tr("Files")}
           </button>
           <button
             type="button"
             className={view === "files" ? "navpill on" : "navpill"}
             onClick={() => setView("files")}
           >
-            <Icon name="terminal" /> Terminal
+            <Icon name="terminal" /> {tr("Terminal")}
           </button>
           <button
             type="button"
             className={view === "connect" ? "navpill on" : "navpill"}
             onClick={() => setView("connect")}
           >
-            <Icon name="server" /> Connections
+            <Icon name="server" /> {tr("Connections")}
           </button>
         </nav>
 
         <button
           type="button"
           className="iconbtn rail-toggle"
-          title={railCollapsed ? "展开会话栏 (Ctrl+B)" : "折叠会话栏 (Ctrl+B)"}
-          aria-label={railCollapsed ? "展开会话栏" : "折叠会话栏"}
+          title={tr(railCollapsed ? "展开会话栏 (Ctrl+B)" : "折叠会话栏 (Ctrl+B)")}
+          aria-label={tr(railCollapsed ? "展开会话栏" : "折叠会话栏")}
           aria-pressed={railCollapsed}
           onClick={() => setRailCollapsed((prev) => !prev)}
         >
@@ -1115,8 +1130,8 @@ export default function App() {
           <input
             value={railQuery}
             onChange={(ev) => setRailQuery(ev.target.value)}
-            placeholder="搜索会话、主机或路径"
-            aria-label="搜索会话"
+            placeholder={tr("搜索会话、主机或路径")}
+            aria-label={tr("搜索会话")}
           />
           <kbd>Ctrl K</kbd>
         </div>
@@ -1127,17 +1142,17 @@ export default function App() {
         <button
           type="button"
           className={railCollapsed ? "sb-toggle" : "sb-toggle on"}
-          title={railCollapsed ? "展开会话库 (Ctrl+B)" : "收起会话库 (Ctrl+B)"}
-          aria-label={railCollapsed ? "展开会话库" : "收起会话库"}
+          title={tr(railCollapsed ? "展开会话库 (Ctrl+B)" : "收起会话库 (Ctrl+B)")}
+          aria-label={tr(railCollapsed ? "展开会话库" : "收起会话库")}
           aria-pressed={!railCollapsed}
           onClick={() => setRailCollapsed((prev) => !prev)}
         >
           <Icon name="sidebar" />
         </button>
 
-        <div className="sb-tabs" role="tablist" aria-label="会话">
+        <div className="sb-tabs" role="tablist" aria-label={tr("会话")}>
           {tabs.length === 0 ? (
-            <span className="sb-empty">无活动会话 · 从会话库打开一个连接</span>
+            <span className="sb-empty">{tr("无活动会话 · 从会话库打开一个连接")}</span>
           ) : (
             tabs.map((tab) => (
               <button
@@ -1157,8 +1172,8 @@ export default function App() {
                   <span
                     className="sbtab__x"
                     role="button"
-                    aria-label="关闭会话"
-                    title="关闭会话"
+                    aria-label={tr("关闭会话")}
+                    title={tr("关闭会话")}
                     onClick={(ev) => {
                       ev.stopPropagation();
                       closeTab(tab.key);
@@ -1178,7 +1193,7 @@ export default function App() {
           <button
             type="button"
             className="sb-chip"
-            title="打开文件面板查看传输队列"
+            title={tr("打开文件面板查看传输队列")}
             onClick={() => {
               setView("files");
               setPanelOpen(true);
@@ -1186,15 +1201,15 @@ export default function App() {
           >
             <Icon name="upload" />
             <b>{sftpSummary.active + sftpSummary.queued}</b>
-            <span>传输中</span>
+            <span>{tr("传输中")}</span>
           </button>
         ) : null}
 
         <button
           type="button"
           className={panelOpen ? "sb-btn sb-btn--icon on" : "sb-btn sb-btn--icon"}
-          title="文件面板 (Ctrl+Shift+E)"
-          aria-label="文件面板"
+          title={tr("文件面板 (Ctrl+Shift+E)")}
+          aria-label={tr("文件面板")}
           aria-expanded={panelOpen}
           onClick={() => {
             setView("files");
@@ -1202,32 +1217,32 @@ export default function App() {
           }}
         >
           <Icon name="folder" />
-          <span>文件</span>
+          <span>{tr("文件")}</span>
         </button>
 
         {panelOpen ? (
           <button
             type="button"
             className="sb-btn sb-btn--icon"
-            title={panelLayout === "push" ? "当前：挤压终端（Alt+P 切换为覆盖）" : "当前：覆盖终端（Alt+P 切换为挤压）"}
-            aria-label={panelLayout === "push" ? "当前挤压：切换为覆盖终端" : "当前覆盖：切换为挤压终端"}
+            title={tr(panelLayout === "push" ? "当前：挤压终端（Alt+P 切换为覆盖）" : "当前：覆盖终端（Alt+P 切换为挤压）")}
+            aria-label={tr(panelLayout === "push" ? "当前挤压：切换为覆盖终端" : "当前覆盖：切换为挤压终端")}
             aria-pressed={panelLayout === "push"}
             onClick={() => setPanelLayout((prev) => (prev === "push" ? "overlay" : "push"))}
           >
             <Icon name={panelLayout === "push" ? "columns" : "layers"} />
-            <span>{panelLayout === "push" ? "挤压" : "覆盖"}</span>
+            <span>{tr(panelLayout === "push" ? "挤压中" : "覆盖中")}</span>
           </button>
         ) : null}
 
         <button
           type="button"
           className={view === "connect" ? "sb-btn sb-btn--icon on" : "sb-btn sb-btn--icon"}
-          title="新建连接"
-          aria-label="新建连接"
+          title={tr("新建连接")}
+          aria-label={tr("新建连接")}
           onClick={() => setView(view === "connect" ? "files" : "connect")}
         >
           <Icon name="plus" />
-          <span>连接</span>
+          <span>{tr("连接")}</span>
         </button>
         </div>
 
@@ -1235,7 +1250,7 @@ export default function App() {
         <button
           type="button"
           className="iconbtn"
-          title={theme === "light" ? "切换到深色主题" : "切换到浅色主题"}
+          title={tr(theme === "light" ? "切换到深色主题" : "切换到浅色主题")}
           onClick={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
         >
           <Icon name={theme === "light" ? "moon" : "sun"} />
@@ -1258,8 +1273,8 @@ export default function App() {
                 <button
                   type="button"
                   className="mini-add"
-                  title="新建连接"
-                  aria-label="新建连接"
+                  title={tr("新建连接")}
+                  aria-label={tr("新建连接")}
                   onClick={() => setView("connect")}
                 >
                   <Icon name="plus" />
@@ -1291,7 +1306,7 @@ export default function App() {
                   );
                 })}
                 {savedRows.length === 0 ? (
-                  <span className="mini-empty" title="暂无已保存会话">
+                  <span className="mini-empty" title={tr("暂无已保存会话")}>
                     <Icon name="server" />
                   </span>
                 ) : null}
@@ -1303,7 +1318,7 @@ export default function App() {
                     className={
                       !activeInSaved && activeLabel === row.name ? "minirow on" : "minirow"
                     }
-                    title={`最近会话 · ${row.name}`}
+                    title={tr("最近会话 · {name}", { name: row.name })}
                     onClick={() => openSession(row)}
                   >
                     <span className="mini-tile ghost">
@@ -1316,8 +1331,8 @@ export default function App() {
                 <button
                   type="button"
                   className="mini-add"
-                  title="展开会话栏 (Ctrl+B)"
-                  aria-label="展开会话栏"
+                  title={tr("展开会话栏 (Ctrl+B)")}
+                  aria-label={tr("展开会话栏")}
                   onClick={() => setRailCollapsed(false)}
                 >
                   <Icon name="chevronLeft" />
@@ -1328,25 +1343,25 @@ export default function App() {
           {railCollapsed ? null : (
             <>
               <div className="rail-head">
-            <h2>Sessions</h2>
+            <h2>{tr("Sessions")}</h2>
             <span className="count">{connections.length}</span>
             <span className="grow" />
             <button
               type="button"
               className="add"
-              title="新建连接"
+              title={tr("新建连接")}
               onClick={() => setView("connect")}
             >
               <Icon name="plus" />
             </button>
           </div>
 
-          <div className="seg" role="tablist" aria-label="会话筛选">
+          <div className="seg" role="tablist" aria-label={tr("会话筛选")}>
             {(
               [
-                ["all", "全部"],
-                ["saved", "已保存"],
-                ["recent", "最近"],
+                ["all", tr("全部")],
+                ["saved", tr("已保存")],
+                ["recent", tr("最近")],
               ] as Array<[RailTab, string]>
             ).map(([key, label]) => (
               <button
@@ -1365,8 +1380,8 @@ export default function App() {
             <input
               value={railQuery}
               onChange={(ev) => setRailQuery(ev.target.value)}
-              placeholder="筛选会话"
-              aria-label="筛选会话"
+              placeholder={tr("筛选会话")}
+              aria-label={tr("筛选会话")}
             />
           </div>
 
@@ -1374,11 +1389,11 @@ export default function App() {
             {railTab !== "recent" ? (
               <>
                 <div className="glabel">
-                  会话库 <span className="n">{savedRows.length}</span>
+                  {tr("会话库")} <span className="n">{savedRows.length}</span>
                 </div>
                 {savedRows.length === 0 ? (
                   <p className="hint" style={{ padding: "0 var(--sp-2)" }}>
-                    暂无已保存连接，点右上角 + 新建。
+                    {tr("暂无已保存连接，点右上角 + 新建。")}
                   </p>
                 ) : (
                   savedRows.map((row) => {
@@ -1411,7 +1426,7 @@ export default function App() {
                           className="tx"
                           style={{ border: 0, background: "transparent", textAlign: "left" }}
                           onClick={() => openConnection(row)}
-                          title="点击连接"
+                          title={tr("点击连接")}
                         >
                           <span className="nm">{row.name}</span>
                           <span className="mt">
@@ -1426,7 +1441,7 @@ export default function App() {
                         <button
                           type="button"
                           className="srow__x"
-                          title="载入到表单"
+                          title={tr("载入到表单")}
                           onClick={() => selectConnection(row)}
                         >
                           <Icon name="pencil" />
@@ -1434,7 +1449,7 @@ export default function App() {
                         <button
                           type="button"
                           className="srow__x"
-                          title="删除连接"
+                          title={tr("删除连接")}
                           onClick={() => void removeConnection(row)}
                         >
                           <Icon name="trash" />
@@ -1449,7 +1464,7 @@ export default function App() {
             {railTab !== "saved" && recentRows.length > 0 ? (
               <>
                 <div className="glabel" style={{ marginTop: "var(--sp-3)" }}>
-                  最近会话 <span className="n">{recentRows.length}</span>
+                  {tr("最近会话")} <span className="n">{recentRows.length}</span>
                 </div>
                 {recentRows.map((row) => {
                   const isActive = !activeInSaved && activeLabel === row.name;
@@ -1475,7 +1490,7 @@ export default function App() {
                         onClick={() => openSession(row)}
                       >
                         <span className="nm">{row.name}</span>
-                        <span className="mt">恢复该会话</span>
+                        <span className="mt">{tr("恢复该会话")}</span>
                       </button>
                     </div>
                   );
@@ -1486,13 +1501,13 @@ export default function App() {
 
           <div className="rail-foot">
             <button type="button" className="newcon" onClick={() => setView("connect")}>
-              <Icon name="plus" /> 新建连接
+              <Icon name="plus" /> {tr("新建连接")}
             </button>
             <div className="usercard">
               <DataResetButton />
               <TraySettings />
               <span className="grow" />
-              <span>{theme === "light" ? "Light" : "Dark"}</span>
+              <span>{tr(theme === "light" ? "Light" : "Dark")}</span>
             </div>
           </div>
             </>
@@ -1502,7 +1517,7 @@ export default function App() {
           <button
             type="button"
             className="railscrim"
-            aria-label="收起会话库"
+            aria-label={tr("收起会话库")}
             onClick={() => setRailCollapsed(true)}
           />
         ) : null}
@@ -1516,12 +1531,12 @@ export default function App() {
               <div className="connpage">
                 <div className="conntop">
                   <button type="button" className="back" onClick={() => setView("files")}>
-                    <Icon name="chevronLeft" /> Files
+                    <Icon name="chevronLeft" /> {tr("Files")}
                   </button>
                   <span className="sep">/</span>
-                  <span className="ttl">New connection</span>
+                  <span className="ttl">{tr("New connection")}</span>
                   <span className="grow" />
-                  <span className="hint">SSH · SFTP · 代理 · 跳板链</span>
+                  <span className="hint">{tr("SSH · SFTP · 代理 · 跳板链")}</span>
                 </div>
 
                 <div className="connbody">
@@ -1531,7 +1546,7 @@ export default function App() {
                         <Icon name="server" />
                       </span>
                       <div>
-                        <div className="nm">{form.name || "未命名连接"}</div>
+                        <div className="nm">{form.name || tr("未命名连接")}</div>
                         <div className="sub">
                           {form.username || "user"}@{form.host || "host"}:
                           {form.port || "22"}
@@ -1539,20 +1554,20 @@ export default function App() {
                       </div>
                       <span className="grow" />
                       <span className="warnchip">
-                        <Icon name="lock" /> 密码不落盘
+                        <Icon name="lock" /> {tr("密码不落盘")}
                       </span>
                     </header>
 
                     <div className="form2">
                       <section className="fsec2">
                         <div className="sh2">
-                          <span className="lbl2">Endpoint</span>
+                          <span className="lbl2">{tr("Endpoint")}</span>
                           <span className="rule2" />
-                          <span className="hint2">名称仅用于本地会话库</span>
+                          <span className="hint2">{tr("名称仅用于本地会话库")}</span>
                         </div>
                         <div className="g2">
                           <label className="field2">
-                            <span className="lb2">名称</span>
+                            <span className="lb2">{tr("名称")}</span>
                             <input
                               className="in2"
                               value={form.name}
@@ -1562,7 +1577,7 @@ export default function App() {
                           </label>
                           <label className="field2">
                             <span className="lb2">
-                              主机 <span className="req">*</span>
+                              {tr("主机")} <span className="req">*</span>
                             </span>
                             <input
                               className="in2"
@@ -1573,7 +1588,7 @@ export default function App() {
                             />
                           </label>
                           <label className="field2">
-                            <span className="lb2">端口</span>
+                            <span className="lb2">{tr("端口")}</span>
                             <input
                               className="in2"
                               value={form.port}
@@ -1583,7 +1598,7 @@ export default function App() {
                           </label>
                           <label className="field2">
                             <span className="lb2">
-                              用户名 <span className="req">*</span>
+                              {tr("用户名")} <span className="req">*</span>
                             </span>
                             <input
                               className="in2"
@@ -1597,26 +1612,26 @@ export default function App() {
 
                       <section className="fsec2">
                         <div className="sh2">
-                          <span className="lbl2">Authentication</span>
+                          <span className="lbl2">{tr("Authentication")}</span>
                           <span className="rule2" />
                         </div>
                         <div className="g2">
                           <label className="field2">
-                            <span className="lb2">认证方式</span>
+                            <span className="lb2">{tr("认证方式")}</span>
                             <select
                               className="in2"
                               value={form.authMode}
                               onChange={patch("authMode")}
                             >
-                              <option value="password">密码</option>
-                              <option value="key">私钥文件</option>
+                              <option value="password">{tr("密码")}</option>
+                              <option value="key">{tr("私钥文件")}</option>
                               <option value="agent">ssh-agent</option>
                             </select>
                           </label>
                           {form.authMode === "password" ? (
                             <label className="field2">
                               <span className="lb2">
-                                密码 <span className="opt">仅本次会话</span>
+                                {tr("密码")} <span className="opt">{tr("仅本次会话")}</span>
                               </span>
                               <input
                                 className="in2"
@@ -1630,7 +1645,7 @@ export default function App() {
                           {form.authMode === "key" ? (
                             <>
                               <label className="field2">
-                                <span className="lb2">私钥路径</span>
+                                <span className="lb2">{tr("私钥路径")}</span>
                                 <input
                                   className="in2"
                                   value={form.keyPath}
@@ -1641,7 +1656,7 @@ export default function App() {
                               </label>
                               <label className="field2">
                                 <span className="lb2">
-                                  私钥口令 <span className="opt">可空</span>
+                                  {tr("私钥口令")} <span className="opt">{tr("可空")}</span>
                                 </span>
                                 <input
                                   className="in2"
@@ -1657,7 +1672,7 @@ export default function App() {
                             <>
                               <label className="field2">
                                 <span className="lb2">
-                                   agent 端点 <span className="opt">空=系统默认</span>
+                                  {tr("agent 端点")} <span className="opt">{tr("空=系统默认")}</span>
                                 </span>
                                 <input
                                   className="in2"
@@ -1668,7 +1683,7 @@ export default function App() {
                               </label>
                               <label className="field2">
                                 <span className="lb2">
-                                  identity <span className="opt">空=第一个</span>
+                                  identity <span className="opt">{tr("空=第一个")}</span>
                                 </span>
                                 <input
                                   className="in2"
@@ -1684,19 +1699,19 @@ export default function App() {
 
                       <section className="fsec2">
                         <div className="sh2">
-                          <span className="lbl2">Proxy</span>
+                          <span className="lbl2">{tr("Proxy")}</span>
                           <span className="rule2" />
-                          <span className="hint2">可选，经代理转发 TCP</span>
+                          <span className="hint2">{tr("可选，经代理转发 TCP")}</span>
                         </div>
                         <div className="g2">
                           <label className="field2">
-                            <span className="lb2">类型</span>
+                            <span className="lb2">{tr("类型")}</span>
                             <select
                               className="in2"
                               value={form.proxyKind}
                               onChange={patch("proxyKind")}
                             >
-                              <option value="none">不使用</option>
+                              <option value="none">{tr("不使用")}</option>
                               <option value="socks5">SOCKS5</option>
                               <option value="httpConnect">HTTP CONNECT</option>
                             </select>
@@ -1704,7 +1719,7 @@ export default function App() {
                           {form.proxyKind !== "none" ? (
                             <>
                               <label className="field2">
-                                <span className="lb2">代理主机</span>
+                                <span className="lb2">{tr("代理主机")}</span>
                                 <input
                                   className="in2"
                                   value={form.proxyHost}
@@ -1713,7 +1728,7 @@ export default function App() {
                                 />
                               </label>
                               <label className="field2">
-                                <span className="lb2">端口</span>
+                                <span className="lb2">{tr("端口")}</span>
                                 <input
                                   className="in2"
                                   value={form.proxyPort}
@@ -1723,7 +1738,7 @@ export default function App() {
                               </label>
                               <label className="field2">
                                 <span className="lb2">
-                                  用户名 <span className="opt">可空</span>
+                                  {tr("用户名")} <span className="opt">{tr("可空")}</span>
                                 </span>
                                 <input
                                   className="in2"
@@ -1734,7 +1749,7 @@ export default function App() {
                               </label>
                               <label className="field2">
                                 <span className="lb2">
-                                  密码 <span className="opt">可空</span>
+                                  {tr("密码")} <span className="opt">{tr("可空")}</span>
                                 </span>
                                 <input
                                   className="in2"
@@ -1751,7 +1766,7 @@ export default function App() {
 
                       <section className="fsec2">
                         <div className="sh2">
-                          <span className="lbl2">Jump chain</span>
+                          <span className="lbl2">{tr("Jump chain")}</span>
                           <span className="rule2" />
                           <button
                             type="button"
@@ -1763,16 +1778,18 @@ export default function App() {
                               ])
                             }
                           >
-                            <Icon name="plus" /> 添加跳板
+                            <Icon name="plus" /> {tr("添加跳板")}
                           </button>
                         </div>
                         {jumps.length === 0 ? (
-                          <p className="hint2">无跳板，直连目标。</p>
+                          <p className="hint2">{tr("无跳板，直连目标。")}</p>
                         ) : null}
                         {jumps.map((j, idx) => (
                           <div className="g2" key={idx} style={{ marginBottom: "var(--sp-3)" }}>
                             <label className="field2">
-                              <span className="lb2">跳板 {idx + 1} 主机</span>
+                              <span className="lb2">
+                                {tr("跳板 {n} 主机", { n: idx + 1 })}
+                              </span>
                               <input
                                 className="in2"
                                 value={j.host}
@@ -1787,7 +1804,7 @@ export default function App() {
                               />
                             </label>
                             <label className="field2">
-                              <span className="lb2">端口</span>
+                              <span className="lb2">{tr("端口")}</span>
                               <input
                                 className="in2"
                                 value={j.port}
@@ -1802,7 +1819,7 @@ export default function App() {
                               />
                             </label>
                             <label className="field2">
-                              <span className="lb2">用户名</span>
+                              <span className="lb2">{tr("用户名")}</span>
                               <input
                                 className="in2"
                                 value={j.username}
@@ -1817,7 +1834,7 @@ export default function App() {
                               />
                             </label>
                             <label className="field2">
-                              <span className="lb2">密码</span>
+                              <span className="lb2">{tr("密码")}</span>
                               <input
                                 className="in2"
                                 type="password"
@@ -1837,7 +1854,7 @@ export default function App() {
                               className="btn btn--ghost"
                               onClick={() => setJumps((prev) => prev.filter((_, i) => i !== idx))}
                             >
-                              移除
+                              {tr("移除")}
                             </button>
                           </div>
                         ))}
@@ -1851,7 +1868,7 @@ export default function App() {
                           {message.text}
                         </span>
                       ) : (
-                        <span className="hint2">密码按 D1 不入库，每次连接输入。</span>
+                        <span className="hint2">{tr("密码按 D1 不入库，每次连接输入。")}</span>
                       )}
                       <span className="grow" />
                       <button
@@ -1860,7 +1877,7 @@ export default function App() {
                         onClick={() => void testConnection()}
                         disabled={busy}
                       >
-                        测试
+                        {tr("测试")}
                       </button>
                       <button
                         type="button"
@@ -1868,55 +1885,55 @@ export default function App() {
                         onClick={() => void saveConnection()}
                         disabled={busy}
                       >
-                        保存
+                        {tr("保存")}
                       </button>
                       <button type="submit" className="btn btn--primary" disabled={busy}>
-                        <Icon name="zap" /> 连接
+                        <Icon name="zap" /> {tr("连接")}
                       </button>
                     </footer>
                   </form>
 
                   <aside className="hkcol">
                     <div className="hklabel">
-                      Security <span className="ln" />
+                      {tr("Security")} <span className="ln" />
                     </div>
                     <div className="scard">
                       <div className="sh">
-                        <Icon name="shield" /> 主机密钥校验
+                        <Icon name="shield" /> {tr("主机密钥校验")}
                       </div>
                       <p className="hknote">
-                        首次连接会拦截未知主机并要求核对 SHA256 指纹；指纹变更时不会提供“永久信任”，只能人工核对后删除旧记录重连。
+                        {tr("首次连接会拦截未知主机并要求核对 SHA256 指纹；指纹变更时不会提供“永久信任”，只能人工核对后删除旧记录重连。")}
                       </p>
                     </div>
                     <div className="scard">
                       <div className="sh">
-                        <Icon name="key" /> 凭据
+                        <Icon name="key" /> {tr("凭据")}
                       </div>
                       <p className="hknote">
-                        密码仅本次会话使用，不写入数据库；私钥口令同样不落盘。系统钥匙串不可用时会在此提示。
+                        {tr("密码仅本次会话使用，不写入数据库；私钥口令同样不落盘。系统钥匙串不可用时会在此提示。")}
                       </p>
                       {probe && probe.backend === "none" ? (
                         <p className="warn" style={{ marginTop: "var(--sp-2)" }}>
-                          未检测到系统钥匙串，按 D1 不会把密码落盘；请安装 libsecret。
+                          {tr("未检测到系统钥匙串，按 D1 不会把密码落盘；请安装 libsecret。")}
                         </p>
                       ) : null}
                     </div>
                     <div className="scard">
                       <div className="sh">
-                        <Icon name="terminal" /> 夹具联调
+                        <Icon name="terminal" /> {tr("夹具联调")}
                       </div>
                       <p className="hknote">
                         <span className="mono">
                           cargo run --features fixture --bin fixture_sshd
                         </span>
                         <br />
-                        默认 alice / secret，端口 2222。
+                        {tr("默认 alice / secret，端口 2222。")}
                       </p>
                     </div>
                     {sessions.length > 0 ? (
                       <div className="scard">
                         <div className="sh">
-                          <Icon name="clock" /> 最近会话
+                          <Icon name="clock" /> {tr("最近会话")}
                         </div>
                         {sessions.slice(0, 4).map((s) => (
                           <div className="frowx" key={s.id}>
@@ -1932,18 +1949,18 @@ export default function App() {
           <>
             <aside
               className={panelWidth && panelWidth < 420 ? "drawer drawer--compact" : "drawer"}
-              aria-label="文件面板"
+              aria-label={tr("文件面板")}
               aria-hidden={panelOpen ? "false" : "true"}
             >
               <div
                 className="drawer__grip"
                 role="separator"
                 aria-orientation="vertical"
-                aria-label="调整文件面板宽度"
+                aria-label={tr("调整文件面板宽度")}
                 aria-valuemin={340}
                 aria-valuemax={720}
                 aria-valuenow={Math.round(panelWidth)}
-                title="拖动调整宽度 · 双击恢复默认 · Alt+[ / Alt+] 微调"
+                title={tr("拖动调整宽度 · 双击恢复默认 · Alt+[ / Alt+] 微调")}
                 tabIndex={0}
                 onPointerDown={startResize}
                 onPointerMove={moveResize}
@@ -1977,15 +1994,15 @@ export default function App() {
               ) : null}
               <div className="drawer__head">
                 <Icon name="folder" />
-                <b>文件</b>
-                <span className="drawer__host">{activeTab?.label ?? "未连接"}</span>
+                <b>{tr("文件")}</b>
+                <span className="drawer__host">{activeTab?.label ?? tr("未连接")}</span>
                 <span className="grow" />
                 <span className="drawer__w">{Math.round(panelWidth)}px</span>
                 <button
                   type="button"
                   className="drawer__x"
-                  aria-label="收起文件面板"
-                  title="收起 (Ctrl+Shift+E)"
+                  aria-label={tr("收起文件面板")}
+                  title={tr("收起 (Ctrl+Shift+E)")}
                   onClick={() => setPanelOpen(false)}
                 >
                   <Icon name="x" />
@@ -1994,7 +2011,7 @@ export default function App() {
               <div className="drawer__body">
                 <SftpManager
                   tabId={activeTab?.tabId ?? null}
-                  label={activeTab?.label ?? "未连接"}
+                  label={activeTab?.label ?? tr("未连接")}
                   initialRemotePath={activeTab ? tabCwd[activeTab.key] ?? null : null}
                   onSummary={setSftpSummary}
                   onOpenTerminal={() => setPanelOpen(false)}
@@ -2014,7 +2031,7 @@ export default function App() {
                   <span className="htile">
                     <Icon name="terminal" />
                   </span>
-                  <span className="nm">Terminal</span>
+                  <span className="nm">{tr("Terminal")}</span>
                   <span className="meta">{terminalTitle}</span>
                   {tabs.length > 0 ? (
                     <span className="meta">
@@ -2048,7 +2065,7 @@ export default function App() {
                           <button
                             type="button"
                             className="termtab__close"
-                            aria-label="关闭标签"
+                            aria-label={tr("关闭标签")}
                             onClick={() => closeTab(tab.key)}
                           >
                             <Icon name="x" />
@@ -2058,7 +2075,7 @@ export default function App() {
                       <button
                         type="button"
                         className="iconbtn"
-                        title="新建连接"
+                        title={tr("新建连接")}
                         onClick={() => setView("connect")}
                       >
                         <Icon name="plus" />
@@ -2069,14 +2086,14 @@ export default function App() {
                     {tabs.length === 0 ? (
                       <div className="empty2">
                         <Icon name="terminal" />
-                        <b>暂无终端会话</b>
-                        <span>在左侧会话库打开连接，或新建一个 SSH 连接。</span>
+                        <b>{tr("暂无终端会话")}</b>
+                        <span>{tr("在左侧会话库打开连接，或新建一个 SSH 连接。")}</span>
                         <button
                           type="button"
                           className="btn btn--primary"
                           onClick={() => setView("connect")}
                         >
-                          <Icon name="plus" /> 新建连接
+                          <Icon name="plus" /> {tr("新建连接")}
                         </button>
                       </div>
                     ) : null}
@@ -2108,49 +2125,51 @@ export default function App() {
           <aside className="rightrail">
             <div className="scard">
               <div className="sh">
-                <Icon name="server" /> Connection
+                <Icon name="server" /> {tr("Connection")}
                 <Icon name="more" className="more" />
               </div>
               {activeTab ? (
                 <div className="facts">
                   <div className="fact">
-                    <div className="k">Host</div>
+                    <div className="k">{tr("Host")}</div>
                     <div className="v">{activeTab.input.host}</div>
                   </div>
                   <div className="fact">
-                    <div className="k">Port</div>
+                    <div className="k">{tr("Port")}</div>
                     <div className="v">{activeTab.input.port}</div>
                   </div>
                   <div className="fact">
-                    <div className="k">User</div>
+                    <div className="k">{tr("User")}</div>
                     <div className="v">{activeTab.input.username}</div>
                   </div>
                   <div className="fact">
-                    <div className="k">Auth</div>
+                    <div className="k">{tr("Auth")}</div>
                     <div className="v">{authLabel(activeTab.input)}</div>
                   </div>
                   <div className="fact">
-                    <div className="k">State</div>
+                    <div className="k">{tr("State")}</div>
                     <div className="v">{STATE_TEXT[activeTab.state.state] ?? activeTab.state.state}</div>
                   </div>
                   <div className="fact">
-                    <div className="k">Jump</div>
+                    <div className="k">{tr("Jump")}</div>
                     <div className="v">
                       {(activeTab.input.jumps?.length ?? 0) > 0
-                        ? `${activeTab.input.jumps?.length} hop`
-                        : "none"}
+                        ? tr("{n} hop", { n: activeTab.input.jumps?.length ?? 0 })
+                        : tr("none")}
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="hint">尚未选择会话。</p>
+                <p className="hint">{tr("尚未选择会话。")}</p>
               )}
             </div>
 
             <div className="scard xfercard">
               <div className="sh">
-                <Icon name="upload" /> Live transfer
-                <span className="more">{sftpSummary?.active ?? 0} active</span>
+                <Icon name="upload" /> {tr("Live transfer")}
+                <span className="more">
+                  {tr("{n} active", { n: sftpSummary?.active ?? 0 })}
+                </span>
               </div>
               {sftpSummary?.current ? (
                 <>
@@ -2167,19 +2186,22 @@ export default function App() {
                     <b>{sftpSummary.current.mbps.toFixed(2)} MiB/s</b>
                     <span>{Math.round(sftpSummary.current.percent)}%</span>
                     <span className="grow" />
-                    <span>ETA {sftpSummary.current.eta}</span>
+                    <span>{tr("剩余 {eta}", { eta: sftpSummary.current.eta })}</span>
                   </div>
                 </>
               ) : (
                 <p className="hint">
-                  队列空闲。已排队 {sftpSummary?.queued ?? 0} · 已完成 {sftpSummary?.done ?? 0}。
+                  {tr("队列空闲。已排队 {queued} · 已完成 {done}。", {
+                    queued: sftpSummary?.queued ?? 0,
+                    done: sftpSummary?.done ?? 0,
+                  })}
                 </p>
               )}
             </div>
 
             <div className="scard recent">
               <div className="sh">
-                <Icon name="clock" /> Recent files
+                <Icon name="clock" /> {tr("Recent files")}
               </div>
               {sftpSummary && sftpSummary.recent.length > 0 ? (
                 sftpSummary.recent.map((item, idx) => (
@@ -2192,7 +2214,7 @@ export default function App() {
                   </div>
                 ))
               ) : (
-                <p className="hint">完成传输后会在这里列出最近文件。</p>
+                <p className="hint">{tr("完成传输后会在这里列出最近文件。")}</p>
               )}
             </div>
           </aside>
@@ -2205,19 +2227,22 @@ export default function App() {
           <b>{terminalTitle}</b>
         </span>
         <span className="cell">
-          本地 <b className="num">{(sftpSummary?.active ?? 0) + (sftpSummary?.queued ?? 0)}</b> 个传输
+          {tr("本地")} <b className="num">{(sftpSummary?.active ?? 0) + (sftpSummary?.queued ?? 0)}</b> {tr("个传输")}
         </span>
         <span className="cell">
-          SFTP <b className="num">{sftpSummary?.done ?? 0}</b> 已完成
+          SFTP <b className="num">{sftpSummary?.done ?? 0}</b> {tr("已完成")}
         </span>
         <span className="cell">
           <b>
             {panelOpen
-              ? `文件面板 · ${panelLayout === "push" ? "挤压中" : "覆盖中"} · ${Math.round(panelWidth)}px`
-              : "文件面板已收起"}
+              ? tr("文件面板 · {mode} · {width}px", {
+                  mode: panelLayout === "push" ? tr("挤压中") : tr("覆盖中"),
+                  width: Math.round(panelWidth),
+                })
+              : tr("文件面板已收起")}
           </b>
         </span>
-        <span className="cell">{message ? message.text : "玻璃拟态关闭 · 实色面板"}</span>
+        <span className="cell">{message ? message.text : tr("玻璃拟态关闭 · 实色面板")}</span>
         <span className="grow" />
         <span className="cell">{theme === "light" ? "LIGHT" : "DARK"}</span>
         <span className="cell">Shellora {appVersion ? `v${appVersion}` : "dev"}</span>
@@ -2227,24 +2252,22 @@ export default function App() {
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal">
             <h3 className="modal__title">
-              {hostKeyPrompt.kind === "unknown"
-                ? "首次连接：确认为可信主机"
-                : "警告：主机密钥已变更"}
+              {tr(hostKeyPrompt.kind === "unknown" ? "首次连接：确认为可信主机" : "警告：主机密钥已变更")}
             </h3>
             <dl className="fingerprint">
-              <dt>主机</dt>
+              <dt>{tr("主机")}</dt>
               <dd>
                 {hostKeyPrompt.details.host}:{hostKeyPrompt.details.port}
               </dd>
-              <dt>密钥类型</dt>
+              <dt>{tr("密钥类型")}</dt>
               <dd>{hostKeyPrompt.details.keyType}</dd>
-              <dt>SHA256（默认）</dt>
+              <dt>{tr("SHA256（默认）")}</dt>
               <dd className="mono">{hostKeyPrompt.details.fingerprintSha256}</dd>
               <dt>MD5</dt>
               <dd className="mono">{hostKeyPrompt.details.fingerprintMd5}</dd>
               {hostKeyPrompt.details.known?.length ? (
                 <>
-                  <dt>已信任</dt>
+                  <dt>{tr("已信任")}</dt>
                   <dd className="mono">
                     {hostKeyPrompt.details.known
                       .map((k) => `${k.keyType} ${k.fingerprintSha256}`)
@@ -2255,25 +2278,24 @@ export default function App() {
             </dl>
             {hostKeyPrompt.kind === "unknown" ? (
               <p className="hint">
-                请与目标主机的运维方核对指纹。确认后该指纹写入本地信任库；不确认则不会建立会话。
+                {tr("请与目标主机的运维方核对指纹。确认后该指纹写入本地信任库；不确认则不会建立会话。")}
               </p>
             ) : (
               <p className="warn">
-                这可能意味着中间人攻击或主机密钥被替换。本工具不会提供“永久信任”，
-                请先人工核对，再删除该主机记录并重新连接。
+                {tr("这可能意味着中间人攻击或主机密钥被替换。本工具不会提供“永久信任”，请先人工核对，再删除该主机记录并重新连接。")}
               </p>
             )}
             <div className="form__actions">
               <button type="button" className="btn" onClick={() => setHostKeyPrompt(null)}>
-                取消
+                {tr("取消")}
               </button>
               {hostKeyPrompt.kind === "unknown" ? (
                 <button type="button" className="btn btn--primary" onClick={trustNewHost} disabled={busy}>
-                  信任并继续
+                  {tr("信任并继续")}
                 </button>
               ) : (
                 <button type="button" className="btn" onClick={() => void deleteBlockedHost()} disabled={busy}>
-                  删除该主机记录
+                  {tr("删除该主机记录")}
                 </button>
               )}
             </div>
@@ -2292,3 +2314,5 @@ export default function App() {
     </div>
   );
 }
+
+

@@ -95,7 +95,10 @@ pub async fn download(
     if meta.is_dir() {
         return Err(ErrorDto::new(
             ErrorCode::SftpProtocol,
-            format!("远端路径不是普通文件：{}", req.remote_path),
+            crate::i18n::t_args(
+                "远端路径不是普通文件：{path}",
+                &[("path", &req.remote_path)],
+            ),
         ));
     }
     let total = meta.len();
@@ -211,9 +214,9 @@ pub async fn upload(
 ) -> Result<TransferResultDto, ErrorDto> {
     let meta = tokio::fs::metadata(&req.local_path).await.map_err(map_io)?;
     if !meta.is_file() {
-        return Err(ErrorDto::internal(format!(
-            "本地路径不是普通文件：{}",
-            req.local_path.display()
+        return Err(ErrorDto::internal(crate::i18n::t_args(
+            "本地路径不是普通文件：{path}",
+            &[("path", &req.local_path.display().to_string())],
         )));
     }
     let total = meta.len();
@@ -400,7 +403,10 @@ async fn pump(
                     Some(Err(err)) if err.is_cancelled() => {}
                     Some(Err(err)) => {
                         if first_error.is_none() {
-                            first_error = Some(ErrorDto::internal(format!("传输任务异常：{err}")));
+                            first_error = Some(ErrorDto::internal(crate::i18n::t_args(
+                                "传输任务异常：{error}",
+                                &[("error", &err.to_string())],
+                            )));
                         }
                         progress.request_stop();
                     }
@@ -474,7 +480,10 @@ async fn download_worker(
             if n == 0 {
                 return Err(ErrorDto::new(
                     ErrorCode::SftpProtocol,
-                    format!("远端文件提前结束：已读 {off}+{done} 字节"),
+                    crate::i18n::t_args(
+                        "远端文件提前结束：已读 {off}+{done} 字节",
+                        &[("off", &off.to_string()), ("done", &done.to_string())],
+                    ),
                 ));
             }
             {
@@ -525,8 +534,9 @@ async fn upload_worker(
             let want = ((len - done) as usize).min(buf.len());
             let n = local.read(&mut buf[..want]).await.map_err(map_io)?;
             if n == 0 {
-                return Err(ErrorDto::internal(format!(
-                    "本地文件提前结束：已读 {off}+{done} 字节"
+                return Err(ErrorDto::internal(crate::i18n::t_args(
+                    "本地文件提前结束：已读 {off}+{done} 字节",
+                    &[("off", &off.to_string()), ("done", &done.to_string())],
                 )));
             }
             remote_file
@@ -702,7 +712,7 @@ async fn open_stream(
             if Instant::now() >= deadline {
                 return Err(ErrorDto::new(
                     ErrorCode::ChannelClosed,
-                    "SSH 会话尚未就绪，无法开始传输",
+                    crate::i18n::t("SSH 会话尚未就绪，无法开始传输"),
                 ));
             }
             tokio::time::sleep(SFTP_READY_POLL).await;
@@ -712,13 +722,24 @@ async fn open_stream(
         let channel = handle
             .channel_open_session()
             .await
-            .map_err(|e| ErrorDto::new(ErrorCode::ChannelClosed, format!("打开通道失败：{e}")))?;
-        channel
-            .request_subsystem(true, "sftp")
-            .await
             .map_err(|e| {
-                ErrorDto::new(ErrorCode::ChannelClosed, format!("请求 sftp 子系统失败：{e}"))
+                ErrorDto::new(
+                    ErrorCode::ChannelClosed,
+                    crate::i18n::t_args(
+                        "打开通道失败：{error}",
+                        &[("error", &e.to_string())],
+                    ),
+                )
             })?;
+        channel.request_subsystem(true, "sftp").await.map_err(|e| {
+            ErrorDto::new(
+                ErrorCode::ChannelClosed,
+                crate::i18n::t_args(
+                    "请求 sftp 子系统失败：{error}",
+                    &[("error", &e.to_string())],
+                ),
+            )
+        })?;
         return Ok(channel.into_stream());
     }
 }
@@ -793,7 +814,7 @@ fn map_sftp_err(err: SftpError) -> ErrorDto {
         };
     }
     if matches!(err, SftpError::Timeout) {
-        return ErrorDto::new(ErrorCode::NetTimeout, "SFTP 请求超时");
+        return ErrorDto::new(ErrorCode::NetTimeout, crate::i18n::t("SFTP 请求超时"));
     }
     ErrorDto::new(ErrorCode::SftpProtocol, err.to_string())
 }
@@ -812,12 +833,18 @@ fn db_err(err: crate::db::DbError) -> ErrorDto {
 fn target_exists(path: &Path) -> ErrorDto {
     ErrorDto::new(
         ErrorCode::SftpTargetExists,
-        format!("目标已存在：{}", path.display()),
+        crate::i18n::t_args(
+            "目标已存在：{path}",
+            &[("path", &path.display().to_string())],
+        ),
     )
 }
 
 fn interrupted() -> ErrorDto {
-    ErrorDto::new(ErrorCode::TransferInterrupted, "传输被中断，可从断点继续")
+    ErrorDto::new(
+        ErrorCode::TransferInterrupted,
+        crate::i18n::t("传输被中断，可从断点继续"),
+    )
 }
 
 fn part_path(target: &Path) -> PathBuf {

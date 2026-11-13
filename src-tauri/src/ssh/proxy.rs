@@ -30,14 +30,20 @@ pub async fn open(
         ProxyInput::Socks5 { host, port, username, password } => {
             let fut = socks5(host, port, dest_host, dest_port, username, password);
             match tokio::time::timeout(timeout, fut).await {
-                Err(_) => Err(ErrorDto::new(ErrorCode::NetTimeout, "SOCKS5 握手超时")),
+                Err(_) => Err(ErrorDto::new(
+                    ErrorCode::NetTimeout,
+                    crate::i18n::t("SOCKS5 握手超时"),
+                )),
                 Ok(r) => r.map(|s| Box::new(s) as BoxStream),
             }
         }
         ProxyInput::HttpConnect { host, port, username, password } => {
             let fut = http_connect(host, port, dest_host, dest_port, username, password);
             match tokio::time::timeout(timeout, fut).await {
-                Err(_) => Err(ErrorDto::new(ErrorCode::NetTimeout, "HTTP CONNECT 握手超时")),
+                Err(_) => Err(ErrorDto::new(
+                    ErrorCode::NetTimeout,
+                    crate::i18n::t("HTTP CONNECT 握手超时"),
+                )),
                 Ok(r) => r.map(|s| Box::new(s) as BoxStream),
             }
         }
@@ -52,7 +58,15 @@ async fn tcp(host: &str, port: u16) -> Result<TcpStream, ErrorDto> {
             _ if is_dns_error(&e) => ErrorCode::NetDns,
             _ => ErrorCode::Internal,
         };
-        ErrorDto::new(code, format!("无法连接代理 {host}:{port}：{e}"))
+        let message = crate::i18n::t_args(
+            "无法连接代理 {host}:{port}：{error}",
+            &[
+                ("host", host),
+                ("port", &port.to_string()),
+                ("error", &e.to_string()),
+            ],
+        );
+        ErrorDto::new(code, message)
     })?;
     stream.set_nodelay(true).ok();
     Ok(stream)
@@ -66,11 +80,18 @@ fn is_dns_error(err: &io::Error) -> bool {
 }
 
 fn io_fail(what: &str, err: io::Error) -> ErrorDto {
-    ErrorDto::new(ErrorCode::Internal, format!("{what}：{err}"))
+    let err = err.to_string();
+    ErrorDto::new(
+        ErrorCode::Internal,
+        crate::i18n::t_args("{what}：{error}", &[("what", what), ("error", &err)]),
+    )
 }
 
-fn unexpected(what: &str) -> ErrorDto {
-    ErrorDto::new(ErrorCode::Internal, format!("代理响应异常：{what}"))
+fn unexpected(detail: &str) -> ErrorDto {
+    ErrorDto::new(
+        ErrorCode::Internal,
+        crate::i18n::t_args("代理响应异常：{detail}", &[("detail", detail)]),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -97,15 +118,15 @@ async fn socks5(
     stream
         .write_all(&greeting)
         .await
-        .map_err(|e| io_fail("SOCKS5 协商写入失败", e))?;
+        .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 协商写入失败"), e))?;
 
     let mut chosen = [0u8; 2];
     stream
         .read_exact(&mut chosen)
         .await
-        .map_err(|e| io_fail("SOCKS5 协商读取失败", e))?;
+        .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 协商读取失败"), e))?;
     if chosen[0] != 5 {
-        return Err(unexpected("SOCKS5 版本号不是 5"));
+        return Err(unexpected(&crate::i18n::t("SOCKS5 版本号不是 5")));
     }
     match chosen[1] {
         0x00 => {}
@@ -113,11 +134,14 @@ async fn socks5(
             let (Some(user), Some(pass)) = (username, password) else {
                 return Err(ErrorDto::new(
                     ErrorCode::AuthFailed,
-                    "SOCKS5 代理要求用户名/密码，但未提供",
+                    crate::i18n::t("SOCKS5 代理要求用户名/密码，但未提供"),
                 ));
             };
             if user.len() > 255 || pass.len() > 255 {
-                return Err(ErrorDto::new(ErrorCode::AuthFailed, "SOCKS5 用户名/密码过长"));
+                return Err(ErrorDto::new(
+                    ErrorCode::AuthFailed,
+                    crate::i18n::t("SOCKS5 用户名/密码过长"),
+                ));
             }
             let mut auth = vec![1, user.len() as u8];
             auth.extend_from_slice(user.as_bytes());
@@ -126,21 +150,30 @@ async fn socks5(
             stream
                 .write_all(&auth)
                 .await
-                .map_err(|e| io_fail("SOCKS5 认证写入失败", e))?;
+                .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 认证写入失败"), e))?;
             let mut reply = [0u8; 2];
             stream
                 .read_exact(&mut reply)
                 .await
-                .map_err(|e| io_fail("SOCKS5 认证读取失败", e))?;
+                .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 认证读取失败"), e))?;
             if reply[1] != 0 {
-                return Err(ErrorDto::new(ErrorCode::AuthFailed, "SOCKS5 认证失败"));
+                return Err(ErrorDto::new(
+                    ErrorCode::AuthFailed,
+                    crate::i18n::t("SOCKS5 认证失败"),
+                ));
             }
         }
         0xFF => {
-            return Err(ErrorDto::new(ErrorCode::AuthFailed, "SOCKS5 代理拒绝所有认证方式"))
+            return Err(ErrorDto::new(
+                ErrorCode::AuthFailed,
+                crate::i18n::t("SOCKS5 代理拒绝所有认证方式"),
+            ))
         }
         other => {
-            return Err(unexpected(&format!("SOCKS5 选择了不支持的认证方式 0x{other:02x}")))
+            return Err(unexpected(&crate::i18n::t_args(
+                "SOCKS5 选择了不支持的认证方式 0x{code}",
+                &[("code", &format!("{other:02x}"))],
+            )))
         }
     }
 
@@ -158,7 +191,7 @@ async fn socks5(
             }
             Err(_) => {
                 if dest_host.len() > 255 {
-                    return Err(unexpected("目标主机名超过 255 字节"));
+                    return Err(unexpected(&crate::i18n::t("目标主机名超过 255 字节")));
                 }
                 request.push(0x03);
                 request.push(dest_host.len() as u8);
@@ -170,32 +203,41 @@ async fn socks5(
     stream
         .write_all(&request)
         .await
-        .map_err(|e| io_fail("SOCKS5 请求写入失败", e))?;
+        .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 请求写入失败"), e))?;
 
     let mut head = [0u8; 4];
     stream
         .read_exact(&mut head)
         .await
-        .map_err(|e| io_fail("SOCKS5 应答读取失败", e))?;
+        .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 应答读取失败"), e))?;
     if head[0] != 5 {
-        return Err(unexpected("SOCKS5 应答版本号不是 5"));
+        return Err(unexpected(&crate::i18n::t("SOCKS5 应答版本号不是 5")));
     }
     match head[1] {
         0x00 => {}
         0x05 => {
             return Err(ErrorDto::new(
                 ErrorCode::NetRefused,
-                format!("代理拒绝连接 {dest_host}:{dest_port}"),
+                crate::i18n::t_args(
+                    "代理拒绝连接 {host}:{port}",
+                    &[("host", &dest_host), ("port", &dest_port.to_string())],
+                ),
             ))
         }
         0x03 | 0x04 => {
             return Err(ErrorDto::new(
                 ErrorCode::NetDns,
-                format!("代理报告目标不可达：{dest_host}:{dest_port}"),
+                crate::i18n::t_args(
+                    "代理报告目标不可达：{host}:{port}",
+                    &[("host", &dest_host), ("port", &dest_port.to_string())],
+                ),
             ))
         }
         other => {
-            return Err(unexpected(&format!("SOCKS5 应答失败码 0x{other:02x}")));
+            return Err(unexpected(&crate::i18n::t_args(
+                "SOCKS5 应答失败码 0x{code}",
+                &[("code", &format!("{other:02x}"))],
+            )));
         }
     }
     // 消费 BND.ADDR + BND.PORT
@@ -205,28 +247,33 @@ async fn socks5(
             stream
                 .read_exact(&mut skip)
                 .await
-                .map_err(|e| io_fail("SOCKS5 应答地址读取失败", e))?;
+                .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 应答地址读取失败"), e))?;
         }
         0x04 => {
             let mut skip = [0u8; 16 + 2];
             stream
                 .read_exact(&mut skip)
                 .await
-                .map_err(|e| io_fail("SOCKS5 应答地址读取失败", e))?;
+                .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 应答地址读取失败"), e))?;
         }
         0x03 => {
             let mut len = [0u8; 1];
             stream
                 .read_exact(&mut len)
                 .await
-                .map_err(|e| io_fail("SOCKS5 应答地址读取失败", e))?;
+                .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 应答地址读取失败"), e))?;
             let mut skip = vec![0u8; len[0] as usize + 2];
             stream
                 .read_exact(&mut skip)
                 .await
-                .map_err(|e| io_fail("SOCKS5 应答地址读取失败", e))?;
+                .map_err(|e| io_fail(&crate::i18n::t("SOCKS5 应答地址读取失败"), e))?;
         }
-        other => return Err(unexpected(&format!("SOCKS5 应答地址类型 0x{other:02x}"))),
+        other => {
+            return Err(unexpected(&crate::i18n::t_args(
+                "SOCKS5 应答地址类型 0x{code}",
+                &[("code", &format!("{other:02x}"))],
+            )))
+        }
     }
     Ok(stream)
 }
@@ -256,7 +303,7 @@ async fn http_connect(
     stream
         .write_all(request.as_bytes())
         .await
-        .map_err(|e| io_fail("HTTP CONNECT 写入失败", e))?;
+        .map_err(|e| io_fail(&crate::i18n::t("HTTP CONNECT 写入失败"), e))?;
 
     // 读到空行为止；多读到的字节（可能已含 SSH banner）留给上层。
     let mut buf = Vec::new();
@@ -265,7 +312,7 @@ async fn http_connect(
         let n = stream
             .read(&mut chunk)
             .await
-            .map_err(|e| io_fail("HTTP CONNECT 读取失败", e))?;
+            .map_err(|e| io_fail(&crate::i18n::t("HTTP CONNECT 读取失败"), e))?;
         if n == 0 {
             break;
         }
@@ -274,28 +321,34 @@ async fn http_connect(
             break;
         }
         if buf.len() > 32 * 1024 {
-            return Err(unexpected("HTTP CONNECT 响应头过大"));
+            return Err(unexpected(&crate::i18n::t("HTTP CONNECT 响应头过大")));
         }
     }
     let head_end = buf
         .windows(4)
         .position(|w| w == b"\r\n\r\n")
         .map(|i| i + 4)
-        .ok_or_else(|| unexpected("HTTP CONNECT 响应未结束"))?;
+        .ok_or_else(|| unexpected(&crate::i18n::t("HTTP CONNECT 响应未结束")))?;
     let head = String::from_utf8_lossy(&buf[..head_end]).to_string();
     let status: u16 = head
         .lines()
         .next()
         .and_then(|line| line.split_whitespace().nth(1))
         .and_then(|code| code.parse().ok())
-        .ok_or_else(|| unexpected("HTTP CONNECT 状态行缺失"))?;
+        .ok_or_else(|| unexpected(&crate::i18n::t("HTTP CONNECT 状态行缺失")))?;
     if status == 407 {
-        return Err(ErrorDto::new(ErrorCode::AuthFailed, "HTTP 代理认证失败（407）"));
+        return Err(ErrorDto::new(
+            ErrorCode::AuthFailed,
+            crate::i18n::t("HTTP 代理认证失败（407）"),
+        ));
     }
     if status != 200 {
         return Err(ErrorDto::new(
             ErrorCode::Internal,
-            format!("HTTP 代理拒绝 CONNECT（{status}）"),
+            crate::i18n::t_args(
+                "HTTP 代理拒绝 CONNECT（{status}）",
+                &[("status", &status.to_string())],
+            ),
         ));
     }
     Ok(PrefixedStream { inner: stream, prefix: buf[head_end..].to_vec(), pos: 0 })
