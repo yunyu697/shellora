@@ -85,7 +85,8 @@ jobs:
             docs/release/manifest-*.md
 
   macos:
-    runs-on: macos-14
+    # macos-14 在本仓库不可用（GitHub 返回 configuration not supported），macos-latest 可正常调度。
+    runs-on: macos-latest
     env:
       # secrets 不能直接用于 if 条件，这里转成 job 级 env 再判断。
       HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
@@ -234,6 +235,18 @@ jobs:
             echo "tag ${GITHUB_REF_NAME} 与版本 $APP_VERSION 不一致";
             exit 1;
           }
+
+      - name: 校验三平台产物齐全
+        # 任一平台缺失（例如 macOS 构建失败被跳过）都直接失败，不允许用「其它平台继续跑」掩盖。
+        run: |
+          set -e
+          for pat in '*.exe' '*.msi' '*.dmg' '*.AppImage' '*.deb'; do
+            if ! find artifacts -name "$pat" -type f | grep -q .; then
+              echo "缺少产物：$pat"
+              exit 1
+            fi
+          done
+          echo "三平台产物齐全"
 
       - name: 生成 latest.json（应用内更新清单）
         # 需要签名产物（*.sig）。未配置 TAURI_SIGNING_PRIVATE_KEY 时脚本自动跳过，

@@ -212,7 +212,7 @@ const internals: Internals = {
   invoke: async (cmd, args = {}) => {
     switch (cmd) {
       case "plugin:app|version":
-        return "1.1.0-preview";
+        return "1.1.1-preview";
       case "plugin:window|is_maximized":
         return false;
       case "plugin:event|listen":

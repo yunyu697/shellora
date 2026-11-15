@@ -2,7 +2,7 @@
 
 Shellora 是一个跨平台 SSH 终端与 SFTP 双栏文件管理器，基于 Tauri 2 + React + Rust 构建。
 
-当前版本：**1.1.0**（版本号规则见 [docs/VERSIONING.md](docs/VERSIONING.md)）
+当前版本：**1.1.1**（版本号规则见 [docs/VERSIONING.md](docs/VERSIONING.md)）
 
 ## 下载与安装
 
