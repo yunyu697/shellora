@@ -369,3 +369,27 @@ echo "exit=$LASTEXITCODE"
 CI 里就是同一个脚本，分两次调用：先 `--artifacts-only` 查齐全（此时 SHA256SUMS 与合并 manifest
 还没生成），生成清单后再 `--write-sums --manifest` 查自洽。
 
+### 10.4 出包前置条件：产物必须对应仓库里的某个 commit
+
+这条是硬要求：**发布物对应的源码必须在版本里**。产物一旦公开，就应当能回答「它是哪个 commit 编出来的」，
+且那个 commit 必须已在仓库中、可 checkout。三条前置：
+
+1. **工作树干净**：打 tag 前 `git status --porcelain` 必须为空。有改动就先按性质提交，再打 tag；
+   不允许「工作树带改动直接 build 后发布」——那样产物里混着仓库里不存在的代码。
+2. **tag 与 commit 绑定**：用 annotated tag 指向确切 commit，出包工作流只从 tag 触发；
+   tag 解析出的 commit 就是产物对应的源码快照。
+3. **事后能核对**：manifest 的 `build.commit` 必须等于 `git rev-parse <tag>^{commit}`。
+   从 1.1.2 起 `release-manifest.mjs` 会写入 `build.commit` 与 `build.runner.*`（v1.1.1 的 manifest
+   `build` 为 `null`，因为那个字段是出包之后才加的，1.1.1 只能靠 tag 推断）。
+
+```powershell
+git status --porcelain                          # 必须为空
+git rev-parse "v1.1.1^{commit}"                 # 与 manifest 的 build.commit 比对
+node -p "require('./docs/release/manifest-1.1.1.json').build?.commit ?? 'null'"
+```
+
+反面案例（本轮核对）：v1.1.1 于 2026-11-15 09:14 出包（`generatedAt=2026-11-15T01:14:08Z`，HEAD `49c4718`）。
+之后 `src/` 与 `tauri.*.conf.json` 又有一批改动，提交于 10:06–11:53（`45b3c5b`…`2adbc26`）。
+**这批改动未进入 1.1.1 产物**：1.1.1 安装包里是最小窗口尺寸 900×600 与旧圆角档位，
+与仓库 HEAD 不一致，只能靠下一版补齐。这就是为什么上面第 1 条必须先于 tag 执行。
+
