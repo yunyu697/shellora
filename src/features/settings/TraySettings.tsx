@@ -9,7 +9,11 @@ import { LanguageSettings } from "./LanguageSettings";
  * 因为窗口关闭事件发生时前端不一定还在。
  */
 export function TraySettings() {
-  const [open, setOpen] = useState(false);
+  // 仅 DEV 视觉回归：`?preview=1&panel=settings` 直接展开设置页，省去点开左栏的步骤。
+  const [open, setOpen] = useState<boolean>(() => {
+    if (!import.meta.env.DEV) return false;
+    return new URLSearchParams(window.location.search).get("panel") === "settings";
+  });
   const [closeToTray, setCloseToTray] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);

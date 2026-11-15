@@ -14,7 +14,13 @@ const selftest =
   (window as unknown as { __M0_SELFTEST__?: boolean }).__M0_SELFTEST__ === true;
 
 // `?preview=1` 仅在本地视觉回归时装载夹具 IPC，不进入正常启动路径。
+// `?preview=1&locale=ja` 可在 App 求值前固定语种，供五语种截图矩阵使用（仅 DEV）。
 async function boot() {
+  if (import.meta.env.DEV && params.has("locale")) {
+    const { normalizeLocale, setLocaleMode } = await import("./i18n");
+    const forced = normalizeLocale(params.get("locale"));
+    if (forced) setLocaleMode(forced);
+  }
   // 夹具必须先于 App 模块求值安装（App 在模块级读取预览标记）。
   if (import.meta.env.DEV && params.has("preview")) await import("./lib/ipc/preview");
   const { default: App } = await import("./App");

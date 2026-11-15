@@ -362,4 +362,11 @@ const internals: Internals = {
   },
 };
 
-(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = internals;
+// 真实 Tauri 会把 __TAURI_INTERNALS__ 定义成只读且不可重定义属性，赋值会抛 TypeError，
+// 也就是说预览夹具只在浏览器（Chrome/CDP 矩阵）里成立，装不进 WebView2 真机窗口；
+// 真机抽验走真实 IPC，不要带 ?preview=1（见 docs/design/ui-spec.md §11.4）。
+try {
+  (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = internals;
+} catch {
+  /* 真机环境：夹具不可用，静默跳过 */
+}
