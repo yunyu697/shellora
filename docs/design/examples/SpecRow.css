@@ -1,0 +1,86 @@
+/* 参考组件样式：与同目录 SpecRow.tsx 配套，**不参与构建**。
+   复制进 src/styles/base.css 的组件段即可；全部取值来自 §1–§7 的令牌。 */
+
+.specrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: var(--row-sm);
+  padding: var(--sp-1) var(--sp-3);
+  border: var(--bw-1) solid transparent;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+
+.specrow:hover {
+  background: var(--state-hover-row);
+}
+
+.specrow:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.specrow.is-selected {
+  background: var(--selected);
+  border-color: var(--selected-line);
+}
+
+.specrow:disabled {
+  opacity: var(--state-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.specrow__tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--box-xs);
+  height: var(--box-xs);
+  margin-left: calc(var(--sp-0) * -1);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.specrow__tile .ic {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.specrow__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.specrow__title {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-md);
+  font-weight: var(--fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specrow__meta {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specrow > .ic {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--text-3);
+}

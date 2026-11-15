@@ -542,7 +542,8 @@ A/B 对照（同一窗口，只改一个属性，取上边缘中点 2 个物理�
 8. **跑四条检查**：`pnpm lint:spacing && pnpm lint:metrics && pnpm lint:ui && pnpm lint:ui:self`。
    若确实需要布局类宽高裸值，去 `ui-spec-exemptions.json` 加一条并写理由，不要就地放过。
 
-示例（按规范新写的组件）见 `src/features/ui/SpecRow.tsx`。
+示例（按规范新写的组件）见 [`docs/design/examples/SpecRow.tsx`](examples/SpecRow.tsx) 与配套的
+[`SpecRow.css`](examples/SpecRow.css)。示例放在 `docs/` 下，**不参与构建**；复制到 `src/` 时按文件头注释改导入路径。
 
 ## 10. 规范要改时，先改哪几处
 
@@ -844,10 +845,13 @@ pnpm lint:ui:radius --dump # 只导出「选择器 → 计算值 → 出现组�
 
 ## 附录 B：按规范新写组件（示例）
 
-见 [`src/features/ui/SpecRow.tsx`](../../src/features/ui/SpecRow.tsx)。它只用了本页的令牌：
+见 [`docs/design/examples/SpecRow.tsx`](examples/SpecRow.tsx)（样式见同目录 `SpecRow.css`）。它只用了本页的令牌：
 
-- 行高 `--row-sm`、左右 `--sp-3`、图标 14/容器 24、标题 `--fs-md` + `--lh-md`、
-  副标题 `--fs-sm` + `--lh-sm`、圆角 `--r-md`、描边 `--bw-1`、悬停 `--state-hover-row`。
+- 行高 `--row-sm`、左右 `--sp-3`、图标 14/容器 24、标题 `--fs-sm` + `--lh-md`、
+  副标题 `--fs-sm` + `--lh-sm`、圆角 `--r-control`、描边 `--bw-1`、悬停 `--state-hover-row`。
+
+示例文件放在 `docs/design/examples/`，不在 `src/` 下，因此**不会被打进产物**；它只作为「照表搭」的样板，
+新增列表行时复制过去再改信息结构。
 
 照表搭省掉的决策：高度不用试、字号不用比、图标不用量、悬停色不用调、圆角不用猜；
 评审时只讨论信息层级，不再讨论 1–2px 的差异。
