@@ -50,6 +50,15 @@ jobs:
       - name: 间距令牌检查
         run: pnpm lint:spacing
 
+      - name: 界面度量契约检查
+        run: pnpm lint:metrics
+
+      - name: 界面规范令牌检查
+        run: pnpm lint:ui
+
+      - name: 界面规范负向自检
+        run: pnpm lint:ui:self
+
       - name: 版本一致性检查
         run: pnpm lint:version
 
