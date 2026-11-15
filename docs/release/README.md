@@ -285,13 +285,18 @@ windows / macos / linux 三个 job 并行 → publish 汇总 `SHA256SUMS.txt` �
 4. **签名与公证**：Windows Authenticode（EV 证书或 Azure Trusted Signing）+ macOS Developer ID
    + `notarytool`。当前两者**都未签**（README §5）；证书有效期本身会让「永远可复现」失效，
    所以只能承诺「同证书有效期内可复现」。
-5. **齐全性校验有洞（现存缺陷）→ 已修**：publish 的循环原来只查 `*.exe`、`*.msi`、`*.dmg`、
+5. **齐全性与上传范围（修过两轮）**：publish 的循环原来只查 `*.exe`、`*.msi`、`*.dmg`、
    `*.AppImage`、`*.deb`，**漏了 `*.rpm`**；`action-gh-release` 也用了 `fail_on_unmatched_files: false`。
    现在期望清单只有一处（`scripts/release-artifacts.mjs` 的 7 项数组），校验交给
-   `scripts/release-verify.mjs`；上传改用 `artifacts/**/*` 通配（不再逐类枚举，加 bundle 只改
-   `release-artifacts.mjs`），`fail_on_unmatched_files` 改为 `true`——原先因 `latest.json` 可能不存在
-   而单独拆出的第二个 gh-release 步骤连同 `hashFiles` 条件一并删掉：通配里没有 `latest.json` 时
-   其它文件仍能匹配，不会误触发失败。
+   `scripts/release-verify.mjs`。
+   第一版把上传改成 `artifacts/**/*` 通配，**1.1.2 首次发布时炸了**：通配把 `.app` 内部文件
+   （`icon.icns` / `Info.plist` / `bundle_dmg.sh`）、裸二进制 `shellora`、以及三个平台各自带过来的
+   历史 `docs/release/manifest-*.json` 全拖进资产，与显式的 manifest 同名抢占 → `already_exists`，
+   Release 停在 draft（39 个资产，其中 20 个是历史清单）。
+   现在两边一起收窄：`files:` 逐条枚举（7 类安装包 + 6 个 `.sig` + `SHA256SUMS.txt` + `latest.json`
+   + 2 份 manifest；dmg 不产 `.sig`），三个构建作业不再上传 `docs/release/manifest-*`；
+   `release-verify.mjs --exact` 在 publish 前做白名单校验——多一个少一个都失败，并把待上传清单
+   逐条打进日志。`fail_on_unmatched_files: true` 保留。
 6. **来源证明**：manifest 已带 `build.commit` / `build.runner.{os,image,imageVersion,arch}`
    （`scripts/release-manifest.mjs`，本地跑时这些字段为 `null`）；还缺 `actions/attest-build-provenance`
    与 `gh attestation verify`，以及把 `GITHUB_RUN_ID` 写进 `latest.json`。
@@ -347,9 +352,17 @@ echo "exit=$LASTEXITCODE"
 (Get-Content $S) | Where-Object { $_ -notmatch "(\.rpm|ghost\.deb)" } | Set-Content $S
 node scripts/release-verify.mjs --dir $T --manifest $M
 echo "exit=$LASTEXITCODE"
+
+# 6) --exact：混进一个白名单外的文件 → exit=1（这就是 1.1.2 首发的坑：.app 内部文件被当成资产）
+node scripts/release-verify.mjs --dir $T --write-sums --manifest $M | Out-Null
+$bad = Join-Path $T "macos-bundles\bundle\macos\Shellora.app\Contents\Resources\icon.icns"
+New-Item -ItemType Directory -Force -Path (Split-Path $bad) | Out-Null
+Set-Content -Path $bad -Value "x" -NoNewline
+node scripts/release-verify.mjs --dir $T --exact --manifest $M
+echo "exit=$LASTEXITCODE"
 ```
 
-四条判据各自能看到什么（2026-11-15 实测）：
+五条判据各自能看到什么（2026-11-15 实测）：
 
 | 场景 | 退出码 | 实际输出 |
 | --- | ---: | --- |
@@ -357,6 +370,7 @@ echo "exit=$LASTEXITCODE"
 | 删掉 rpm | `1` | 3 项：`缺少产物：Linux 安装包（.rpm）（期望 1 个，实际 0 个）`、`SHA256SUMS.txt 有多余行：./…/Shellora-<ver>-1.x86_64.rpm`、`manifest 多出产物：Shellora-<ver>-1.x86_64.rpm` |
 | 往 `SHA256SUMS.txt` 追加一行 | `1` | `SHA256SUMS.txt 行数 8 != 期待 7`、`SHA256SUMS.txt 有多余行：./linux-bundles/bundle/deb/ghost.deb` |
 | 从 `SHA256SUMS.txt` 删掉 rpm 那一行（文件仍在） | `1` | `SHA256SUMS.txt 行数 6 != 期待 7`、`SHA256SUMS.txt 缺少 Linux 安装包（.rpm）：./…rpm` |
+| `--exact` + 混进 `.app` 内部文件 | `1` | `多余文件（会被误传进 Release）：./macos-bundles/bundle/macos/Shellora.app/Contents/Resources/icon.icns` |
 
 说明两点，免得误读输出：
 
@@ -366,8 +380,9 @@ echo "exit=$LASTEXITCODE"
 - manifest 的条数校验用的是 `--manifest` 指向的那个文件；本地跑 `--assets` 生成时
   `build.commit` / `build.runner.*` 为 `null`（没有 `GITHUB_SHA` / `ImageOS`），属预期。
 
-CI 里就是同一个脚本，分两次调用：先 `--artifacts-only` 查齐全（此时 SHA256SUMS 与合并 manifest
-还没生成），生成清单后再 `--write-sums --manifest` 查自洽。
+CI 里就是同一个脚本，分两次调用，两次都带 `--exact`：先 `--artifacts-only` 查齐全与「只有安装包 +
+签名」，生成清单后再 `--write-sums --manifest` 查自洽与「上传白名单不多不少」。上传清单由脚本打印，
+`release.yml` 的 `files:` 与它逐条对应。
 
 ### 10.4 出包前置条件：产物必须对应仓库里的某个 commit
 

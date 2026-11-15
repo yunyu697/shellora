@@ -13,3 +13,8 @@ export const EXPECTED_ARTIFACTS = [
 ];
 
 export const EXPECTED_COUNT = EXPECTED_ARTIFACTS.length;
+
+// Updater 签名只为「可增量更新」的产物生成：dmg 不产出 `.dmg.sig`（Tauri 的 dmg 只用于首次安装）。
+// 白名单校验按这份名单要求「每个可签名产物都有同名 .sig」，而不是笼统要求 7 个。
+export const SIGNABLE_IDS = ["nsis", "msi", "app-tar", "appimage", "deb", "rpm"];
+export const EXPECTED_SIG_COUNT = SIGNABLE_IDS.length;

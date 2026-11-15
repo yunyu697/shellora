@@ -4,17 +4,21 @@
 //   node scripts/release-verify.mjs --dir artifacts                          # 只校验
 //   node scripts/release-verify.mjs --dir artifacts --write-sums             # 先重写 SHA256SUMS.txt 再校验
 //   node scripts/release-verify.mjs --dir artifacts --manifest docs/release/manifest-1.1.1.json
+//   node scripts/release-verify.mjs --dir artifacts --exact --manifest docs/release/manifest-1.1.2.json
 //   node scripts/release-verify.mjs --dir artifacts --expect-fail            # 自检：期望失败时退出码应为 1
 //
-// 校验四件事，任一不满足即退出码 1：
+// 校验五件事，任一不满足即退出码 1：
 //   1. scripts/release-artifacts.mjs 里的 7 项期待产物各命中且仅命中 1 个文件（漏 rpm 会在这里报）；
 //   2. SHA256SUMS.txt 行数 == 期待数，且每行路径/哈希与磁盘一致，无多余行；
 //   3. manifest 里的产物条数 == 期待数，且文件名集合完全一致；
-//   4. 没有 `*.sig` 混进上面两项（签名是附加文件，不计入期待数）。
+//   4. 没有 `*.sig` 混进上面两项（签名是附加文件，不计入期待数）；
+//   5. `--exact`：artifacts 目录下只允许白名单文件（安装包 + 同名 .sig + SHA256SUMS.txt + latest.json），
+//      多一个少一个都失败；并把最终会被上传的资产逐条打印出来。上传白名单靠它兜底，
+//      不靠 release.yml 的通配有没有写窄。
 import { createHash } from "node:crypto";
 import { createReadStream, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { EXPECTED_ARTIFACTS, EXPECTED_COUNT } from "./release-artifacts.mjs";
+import { EXPECTED_ARTIFACTS, EXPECTED_COUNT, SIGNABLE_IDS, EXPECTED_SIG_COUNT } from "./release-artifacts.mjs";
 
 const argv = process.argv.slice(2);
 const argOf = (flag, fallback) => {
@@ -25,6 +29,7 @@ const dir = resolve(argOf("--dir", "artifacts"));
 const manifestPath = argOf("--manifest", null);
 const writeSums = argv.includes("--write-sums");
 const artifactsOnly = argv.includes("--artifacts-only");
+const exact = argv.includes("--exact");
 
 const sha256 = (file) =>
   new Promise((ok, fail) => {
@@ -133,6 +138,55 @@ if (manifestPath && !artifactsOnly) {
   }
 }
 
+// 5) 上传白名单：artifacts 下只允许「每类安装包 1 个 + 同名 .sig + SHA256SUMS.txt + latest.json」
+//    少一个在 1) 报；这里负责反过来查「多一个」，并把最终上传清单逐条打出来。
+const uploadList = [];
+if (exact) {
+  const anySig = sigs.length > 0;
+  const allowed = new Map();
+  for (const { rule, file } of found) {
+    allowed.set(file.rel, rule.id);
+    // 未启用签名时不把 .sig 放进白名单，否则打印出的上传清单会包含并不存在的文件。
+    if (anySig && SIGNABLE_IDS.includes(rule.id)) allowed.set(`${file.rel}.sig`, "sig");
+  }
+  if (!artifactsOnly) {
+    allowed.set("./SHA256SUMS.txt", "sums");
+    if (anySig) allowed.set("./latest.json", "latest");
+  }
+
+  for (const f of files) {
+    if (!allowed.has(f.rel)) errors.push(`多余文件（会被误传进 Release）：${f.rel}`);
+  }
+
+  if (anySig && sigs.length !== EXPECTED_SIG_COUNT) {
+    errors.push(`签名文件 ${sigs.length} 个 != 可签名产物 ${EXPECTED_SIG_COUNT} 个`);
+  }
+  if (!artifactsOnly) {
+    for (const { rule, file } of found) {
+      if (!anySig || !SIGNABLE_IDS.includes(rule.id)) continue;
+      if (!files.some((f) => f.rel === `${file.rel}.sig`)) errors.push(`缺少签名：${file.rel}.sig`);
+    }
+    if (anySig && !files.some((f) => f.rel === "./latest.json")) {
+      errors.push("有签名却没有 latest.json（应用内更新清单缺失）");
+    }
+    if (!anySig && files.some((f) => f.rel === "./latest.json")) {
+      errors.push("未启用签名却出现 latest.json");
+    }
+  }
+
+  uploadList.push(...[...allowed.keys()].sort());
+
+  // manifest 不在 artifacts 下，但它同样会被上传：两份都必须在，缺一份也算「少一个」。
+  if (manifestPath) {
+    const absJson = resolve(manifestPath);
+    const absMd = absJson.replace(/\.json$/, ".md");
+    for (const p of [absJson, absMd]) {
+      if (!statSync(p, { throwIfNoEntry: false })) errors.push(`缺少待上传清单：${p}`);
+      else uploadList.push(p);
+    }
+  }
+}
+
 if (errors.length) {
   console.error(`[verify] FAIL（${errors.length} 项）`);
   for (const e of errors) console.error(`  - ${e}`);
@@ -141,3 +195,13 @@ if (errors.length) {
 
 console.log(`[verify] OK：${EXPECTED_COUNT} 项产物齐全，SHA256SUMS 与 manifest 条数一致`);
 for (const { rule, file } of found) console.log(`  ${rule.id.padEnd(9)} ${file.rel}`);
+
+if (exact) {
+  console.log(`[verify] 待上传资产共 ${uploadList.length} 个（白名单逐条核过，多一个少一个都会失败）：`);
+  for (const p of uploadList) {
+    // SHA256SUMS.txt 是本轮 --write-sums 刚写的，不在启动时的 files 快照里，回落到磁盘查。
+    const full = files.find((f) => f.rel === p)?.full ?? resolve(p);
+    const size = statSync(full, { throwIfNoEntry: false })?.size;
+    console.log(`  ${String(size ?? "-").padStart(10)}  ${p}`);
+  }
+}

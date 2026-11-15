@@ -81,8 +81,6 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.sig
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/msi/*.sig
-            docs/release/manifest-*.json
-            docs/release/manifest-*.md
 
   macos:
     # macos-14 在本仓库不可用（GitHub 返回 configuration not supported），macos-latest 可正常调度。
@@ -150,11 +148,8 @@ jobs:
           name: macos-bundles
           path: |
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
             src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
             src-tauri/target/universal-apple-darwin/release/bundle/macos/*.sig
-            docs/release/manifest-*.json
-            docs/release/manifest-*.md
 
   linux:
     runs-on: ubuntu-22.04
@@ -209,8 +204,6 @@ jobs:
             src-tauri/target/release/bundle/deb/*.sig
             src-tauri/target/release/bundle/rpm/*.rpm
             src-tauri/target/release/bundle/rpm/*.sig
-            docs/release/manifest-*.json
-            docs/release/manifest-*.md
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -239,7 +232,8 @@ jobs:
       - name: 校验三平台产物齐全
         # 期望清单只有一处：scripts/release-artifacts.mjs（7 项，含 rpm）。
         # 任一平台缺失都直接失败，不允许用「其它平台继续跑」掩盖。
-        run: node scripts/release-verify.mjs --dir artifacts --artifacts-only
+        # --exact 再反查「多出来」的文件：artifacts 下只允许安装包与其 .sig，混进 .app 内部文件也失败。
+        run: node scripts/release-verify.mjs --dir artifacts --artifacts-only --exact
 
       - name: 生成 latest.json（应用内更新清单）
         # 需要签名产物（*.sig）。未配置 TAURI_SIGNING_PRIVATE_KEY 时脚本自动跳过，
@@ -254,18 +248,36 @@ jobs:
       - name: 汇总 SHA256SUMS 并校验清单自洽
         # 三步都不依赖 GitHub：先按期望清单重写 SHA256SUMS（7 行，签名与 latest.json 不计入），
         # 再核对行数 / 每行哈希 / manifest 条数，任一不符即失败。
+        # --exact 是上传前的最后一道：artifacts 下只允许白名单文件（安装包 + 6 个 .sig +
+        # SHA256SUMS.txt + latest.json），多一个少一个都失败，并把待上传清单逐条打进日志。
         run: |
-          node scripts/release-verify.mjs --dir artifacts --write-sums \
+          node scripts/release-verify.mjs --dir artifacts --write-sums --exact \
             --manifest "docs/release/manifest-${APP_VERSION}.json"
           cat artifacts/SHA256SUMS.txt
 
       - uses: softprops/action-gh-release@v2
-        # 上传不再逐类枚举：期望清单只有 scripts/release-artifacts.mjs 一处，加 bundle 不用回来改这里。
-        # 缺件由上面的 verify 直接拦（退出码 1），这里 fail_on_unmatched_files 再兜一层。
-        # artifacts/**/* 覆盖 7 类安装包 + .sig + SHA256SUMS.txt + 可选的 latest.json。
+        # 上传只认这一份显式名单，不再用 artifacts/**/* 通配：通配会把 .app 内部文件
+        # （icon.icns / Info.plist）、裸二进制 shellora、各平台的历史 manifest 一起拖进来，
+        # 与下面的 manifest 同名抢占时还会报 already_exists（1.1.2 首次发布即栽在这里）。
+        # 名单与 scripts/release-verify.mjs --exact 的白名单一一对应；dmg 不产 .sig，所以是 6 个签名。
+        # 未配置 TAURI_SIGNING_PRIVATE_KEY 时不产 latest.json，该行会 unmatched —— 发版前先把签名密钥配好。
         with:
           files: |
-            artifacts/**/*
+            artifacts/windows-bundles/src-tauri/target/release/bundle/nsis/*.exe
+            artifacts/windows-bundles/src-tauri/target/release/bundle/nsis/*.exe.sig
+            artifacts/windows-bundles/src-tauri/target/release/bundle/msi/*.msi
+            artifacts/windows-bundles/src-tauri/target/release/bundle/msi/*.msi.sig
+            artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            artifacts/linux-bundles/src-tauri/target/release/bundle/appimage/*.AppImage
+            artifacts/linux-bundles/src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            artifacts/linux-bundles/src-tauri/target/release/bundle/deb/*.deb
+            artifacts/linux-bundles/src-tauri/target/release/bundle/deb/*.deb.sig
+            artifacts/linux-bundles/src-tauri/target/release/bundle/rpm/*.rpm
+            artifacts/linux-bundles/src-tauri/target/release/bundle/rpm/*.rpm.sig
+            artifacts/SHA256SUMS.txt
+            artifacts/latest.json
             docs/release/manifest-${{ env.APP_VERSION }}.json
             docs/release/manifest-${{ env.APP_VERSION }}.md
           fail_on_unmatched_files: true
