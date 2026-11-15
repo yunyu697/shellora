@@ -4,6 +4,18 @@ Shellora 是一个跨平台 SSH 终端与 SFTP 双栏文件管理器，基于 Ta
 
 当前版本：**1.1.0**（版本号规则见 [docs/VERSIONING.md](docs/VERSIONING.md)）
 
+## 下载与安装
+
+每个版本都发布 Windows / macOS / Linux 三平台产物，见 [Releases](https://github.com/yunyu697/shellora/releases/latest)。
+
+| 平台 | 产物 | 说明 |
+|---|---|---|
+| Windows x64 | `Shellora_<ver>_x64-setup.exe`、`Shellora_<ver>_x64_en-US.msi` | NSIS 按用户安装 / MSI；自带 WebView2 引导安装 |
+| macOS（Universal） | `Shellora_<ver>_universal.dmg` | 同时包含 arm64 与 x86_64，另附 `.app.tar.gz` |
+| Linux x64 | `Shellora_<ver>_amd64.AppImage`、`Shellora_<ver>_amd64.deb`、`Shellora_<ver>-1.x86_64.rpm` | AppImage 免安装；deb/rpm 走系统包管理器 |
+
+同目录附 `SHA256SUMS.txt` 与 `manifest-<ver>.json`（全平台产物的字节数、SHA-256 与构建来源）。
+
 ## 功能范围
 
 - **SSH 终端**：多标签会话、密码 / 私钥 / SSH Agent 认证、跳板链、SOCKS5 / HTTP CONNECT 代理、已知主机指纹校验。
@@ -66,7 +78,10 @@ CI 在 Ubuntu / Windows / macOS 三平台运行上述检查；发布由 `v*` tag
 ## 已知限制
 
 - **Windows x86（32 位）不支持**，仅提供 x64 构建。
-- Windows 安装包未做 Authenticode 签名；macOS 产物未签名 / 未公证，Gatekeeper 可能拦截；Linux 包未做发行版仓库签名。
+- **三平台产物均未做代码签名**（未配置证书），表现分别是：
+  - Windows：NSIS / MSI 未做 Authenticode 签名，SmartScreen 会提示「Windows 已保护你的电脑」，需点「更多信息 → 仍要运行」。
+  - macOS：`.dmg` 未签名、未公证，Gatekeeper 提示「无法验证开发者」。首次需右键 →「打开」，或执行 `xattr -dr com.apple.quarantine /Applications/Shellora.app`。Apple Silicon 用户若不希望跑 Rosetta，请使用 universal 包（同时含 arm64 与 x86_64）。
+  - Linux：`.deb` / `.rpm` / `.AppImage` 均未做仓库签名。AppImage 需要 FUSE（Ubuntu 22.04+ 装 `libfuse2`，或加 `--appimage-extract-and-run` 运行）；`deb`/`rpm` 依赖 `webkit2gtk-4.1`、`libgtk-3-0`、`libayatana-appindicator3`，发行版版本过旧时请用 AppImage。
 - 自动更新依赖发布侧签名密钥与 `latest.json`，未配置 Secrets 时不会启用真实升级通道。
 - 仅支持 SSH / SFTP，不含 SCP、FTP、WebDAV 等其他协议。
 - 未提供团队协作、同步设置或云端会话库；会话数据保存在本机。
