@@ -7,8 +7,8 @@
         "title": "Shellora",
         "width": 1200,
         "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
+        "minWidth": 640,
+        "minHeight": 480,
         "decorations": false,
         "shadow": true
       }
