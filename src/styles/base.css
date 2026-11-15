@@ -20,8 +20,9 @@
   /* ---- 字号阶梯：6 档，下限 10px，正文与可读标签 ≥12px ---- */
   --fs-2xs: 10px;   /* 仅辅助：计数 / 角标 / 单位 / 时间戳 */
   --fs-xs: 11px;    /* 仅辅助：等宽元信息 / 全大写分组标签 */
-  --fs-sm: 12px;    /* 正文下限 / 列表主行 / 紧凑控件 */
+  --fs-sm: 12px;    /* 正文下限 / 紧凑控件 */
   --fs-md: 13px;    /* 正文（默认） */
+  --fs-list: var(--fs-md); /* 列表主行：与正文同档，不得低一号 */
   --fs-lg: 15px;    /* 区块标题 */
   --fs-xl: 17px;    /* 页面标题 */
 
@@ -63,7 +64,6 @@
   --bw-2: 2px;
   --bw-focus: 3px;
   --isw-1: 1.5;
-  --isw-2: 1.8;
   --isw-strong: 2;   /* 勾选/选中标记 */
   --isw-thin: 1.1;  /* 窗口控制等 12px 小图标 */
 
@@ -87,8 +87,9 @@
   --ctl-3xl: 44px;
   --ctl-4xl: 56px;
   --hit-min: 28px;
-  --row-sm: 44px;   /* 表格 / 文件行 */
-  --row-md: 56px;   /* 会话行 */
+  --row-xs: 30px;      /* 密集行：文件 / 传输列表（行高 2.3× 主字号） */
+  --row-list: 44px;    /* 会话行：两行文字 + 状态点（行高 3.4× 主字号） */
+  --row-sm: 44px;      /* 表格区块头（队列头等） */
   --bar-lg: 48px;   /* 面板标题条 */
   --bar-xl: 64px;   /* 应用标题栏 */
 
@@ -127,7 +128,7 @@
   --dur-spin: 900ms;
   --dur-pulse: 1200ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-standard: ease;
+  --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
   --ease-in-out: ease-in-out;
   --ease-linear: linear;
 }
@@ -173,9 +174,11 @@
   --term-search-match: rgba(124, 196, 255, 0.28);
   --mono: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
 
-  /* 交互状态：组件不得自造悬停/按下色 */
-  --state-hover: var(--surface-3);
-  --state-hover-row: var(--surface-2);
+  /* 交互状态：组件不得自造悬停/按下色
+     悬停一律提亮一档（surface-3），暗色不得比行底更深；按下再压一档。 */
+  --state-hover: #1b2734;
+  --state-hover-row: #1b2734; /* 对 --surface 1.18:1：暗色也必须提亮，不得变深 */
+  --state-press-row: #0a1016;
   --state-hover-raised: var(--surface);
   --state-hover-danger: var(--danger-soft);
   --state-hover-accent: var(--accent-soft);
@@ -234,9 +237,11 @@
   --brand-grad: linear-gradient(135deg, #0f86f8, #0b5fc6);
   --term-search-match: rgba(11, 114, 231, 0.2);
 
-  /* 交互状态：组件不得自造悬停/按下色 */
-  --state-hover: var(--surface-3);
-  --state-hover-row: var(--surface-2);
+  /* 交互状态：组件不得自造悬停/按下色
+     悬停一律提亮一档（surface-3），暗色不得比行底更深；按下再压一档。 */
+  --state-hover: #e9eef5;
+  --state-hover-row: #e9eef5; /* 对 --surface 1.16:1：亮色悬停必须看得见 */
+  --state-press-row: #dfe6ef;
   --state-hover-raised: var(--surface);
   --state-hover-danger: var(--danger-soft);
   --state-hover-accent: var(--accent-soft);
@@ -279,6 +284,19 @@ body {
 
 button {
   font-family: inherit;
+}
+
+/* 全局焦点环：键盘 Tab 必须看得见，鼠标点击不出现。
+   组件自带的 --focus 阴影继续生效，这里只做兜底（:where 零特异性）。 */
+:where(button, [role="button"], a[href], input, select, textarea, summary,
+    [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: var(--bw-2) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+/* 通用按下态：按钮压暗一档；行类由 --state-press-row 另行处理 */
+:where(button, [role="button"]):active:not(:disabled) {
+  filter: brightness(0.96);
 }
 
 .ic {
@@ -345,7 +363,6 @@ button {
 .brandmark .ic {
   width: var(--icon-md);
   height: var(--icon-md);
-  stroke-width: var(--isw-2);
 }
 
 .brand {
@@ -379,6 +396,15 @@ button {
   font-size: var(--fs-sm);
   color: var(--text-2);
   cursor: pointer;
+}
+
+.navpill:hover {
+  background: var(--state-hover);
+  color: var(--text-1);
+}
+
+.navpill:active {
+  background: var(--state-press-row);
 }
 
 .navpill .ic {
@@ -601,6 +627,15 @@ kbd {
   cursor: pointer;
 }
 
+.seg button:hover {
+  background: var(--state-hover);
+  color: var(--text-1);
+}
+
+.seg button:active {
+  background: var(--state-press-row);
+}
+
 .seg button.on {
   background: var(--surface);
   color: var(--text-1);
@@ -670,9 +705,45 @@ kbd {
   letter-spacing: 0;
 }
 
+/* ---------------- ListRow：列表行基座 ---------------- */
+/* 会话行 / 文件行 / 队列行共用同一套状态与选中表达；
+   各列表只负责自己的网格与内容，不再各自重复声明。 */
+
+.srow,
+.frow,
+.qrow2 {
+  transition: background-color var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
+}
+
+.srow:hover,
+.frow:hover,
+.qrow2:hover {
+  background: var(--state-hover-row);
+}
+
+.srow:active,
+.frow:active,
+.qrow2:active {
+  background: var(--state-press-row);
+}
+
+.srow:focus-visible,
+.frow:focus-visible,
+.qrow2:focus-visible {
+  outline: var(--bw-2) solid var(--accent);
+  outline-offset: calc(-1 * var(--bw-2));
+}
+
+.srow.on,
+.frow.sel {
+  background: var(--selected);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 .srow {
   width: 100%;
-  height: var(--row-md);
+  height: var(--row-list);
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -718,10 +789,10 @@ kbd {
 
 .srow .nm {
   display: block;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
+  font-size: var(--fs-list);
+  font-weight: var(--fw-medium);
   color: var(--text-1);
-  line-height: var(--lh-small);
+  line-height: var(--lh-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -756,25 +827,15 @@ kbd {
   background: var(--warning);
 }
 
-.srow:hover {
-  background: var(--state-hover-row);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-
-.srow.on {
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--selected-line), var(--shadow-2);
-}
-
 /* 展开定位当前会话后的一次性高亮，600ms 自然消退。 */
 @keyframes rail-pulse {
   0% {
     background: var(--accent-soft);
-    box-shadow: 0 0 0 2px var(--accent-line), var(--shadow-2);
+    box-shadow: inset 0 0 0 2px var(--accent-line);
   }
   100% {
     background: var(--surface);
-    box-shadow: 0 0 0 0 transparent, var(--shadow-2);
+    box-shadow: inset 0 0 0 0 transparent;
   }
 }
 
@@ -800,9 +861,14 @@ kbd {
   color: var(--text-3);
   opacity: 0;
   cursor: pointer;
+  transition: opacity var(--dur-2) var(--ease-standard),
+    background-color var(--dur-2) var(--ease-standard);
 }
 
-.srow:hover .srow__x {
+/* 键盘可达：hover、行内 focus、按钮自身 focus 三种情况都显示 */
+.srow:hover .srow__x,
+.srow:focus-within .srow__x,
+.srow__x:focus-visible {
   opacity: 1;
 }
 
@@ -1122,7 +1188,6 @@ kbd {
   background: var(--surface);
   border: var(--bw-1) solid var(--border);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1324,6 +1389,10 @@ kbd {
   cursor: pointer;
 }
 
+.selbar .abtn:hover {
+  background: var(--state-hover-accent);
+}
+
 .selbar .abtn .ic {
   width: var(--icon-xs);
   height: var(--icon-xs);
@@ -1397,12 +1466,17 @@ kbd {
   position: relative;
 }
 
-.flist__empty,
+.flist__state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
 .flist__loading {
   position: absolute;
-  inset: 0 auto auto 0;
+  inset: 0 0 auto 0;
+  pointer-events: none;
   padding: var(--sp-3) var(--sp-4);
-  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
@@ -1410,23 +1484,18 @@ kbd {
   position: absolute;
   left: 0;
   right: 0;
-  height: var(--row-sm);
+  height: var(--row-xs);
   display: flex;
   align-items: center;
   padding: 0 var(--sp-3) 0 var(--sp-3);
   border-bottom: var(--bw-1) solid var(--border-soft);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-list);
   color: var(--text-1);
   cursor: default;
   user-select: none;
 }
 
-.frow:hover {
-  background: var(--state-hover-row);
-}
-
 .frow.sel {
-  background: var(--selected);
   color: var(--text-1);
 }
 
@@ -1521,6 +1590,9 @@ kbd {
   font-size: var(--fs-2xs);
   color: var(--text-3);
   flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .frow .fcon {
@@ -1551,21 +1623,8 @@ kbd {
   color: var(--accent);
 }
 
-.tint-violet {
-  background: var(--violet-soft);
-  color: var(--violet);
-}
-
-.tint-amber {
-  background: var(--warning-soft);
-  color: var(--warning);
-}
-
-.tint-teal {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
+/* 色块只允许 2 个语义：accent（目录/上传）与中性灰（其余）；
+   方向语义（上传/下载）由队列图标另行使用 accent/success。 */
 .tint-slate {
   background: var(--surface-3);
   color: var(--text-2);
@@ -1721,7 +1780,6 @@ kbd {
   background: var(--surface);
   border: var(--bw-1) solid var(--border);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2059,81 +2117,6 @@ kbd {
   cursor: pointer;
 }
 
-.termtabs {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  height: var(--ctl-xl);
-  padding: 0 var(--sp-2);
-  border-bottom: var(--bw-1) solid var(--border-soft);
-  background: var(--surface-2);
-  overflow-x: auto;
-}
-
-.termtab {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-0);
-  height: var(--ctl-sm);
-  padding: 0 var(--sp-1) 0 var(--sp-2);
-  border: var(--bw-1) solid transparent;
-  border-radius: var(--r-control);
-  flex: none;
-}
-
-.termtab.on {
-  background: var(--surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow-1);
-}
-
-.termtab__label {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  border: 0;
-  background: transparent;
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.termtab.on .termtab__label {
-  color: var(--text-1);
-  font-weight: var(--fw-semibold);
-}
-
-.termtab__text {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.termtab__close {
-  width: var(--ctl-3xs);
-  height: var(--ctl-3xs);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: var(--r-control);
-  background: transparent;
-  color: var(--text-3);
-  cursor: pointer;
-}
-
-.termtab__close .ic {
-  width: var(--icon-2xs);
-  height: var(--icon-2xs);
-}
-
-.termtab__close:hover {
-  background: var(--state-hover-danger);
-  color: var(--danger);
-}
-
 .dot {
   width: var(--dot-xs);
   height: var(--dot-xs);
@@ -2210,11 +2193,11 @@ kbd {
   background: var(--surface);
   border: var(--bw-1) solid var(--border);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  transition: height var(--dur-3) var(--ease-standard);
 }
 
 .termcard.open {
@@ -2239,6 +2222,10 @@ kbd {
   color: inherit;
   text-align: left;
   width: 100%;
+}
+
+.termbar:hover {
+  background: var(--state-hover);
 }
 
 .termbar .htile {
@@ -2655,6 +2642,11 @@ kbd {
   cursor: pointer;
 }
 
+.conntop .back:hover {
+  background: var(--state-hover);
+  color: var(--text-1);
+}
+
 .conntop .back .ic {
   width: var(--icon-sm);
   height: var(--icon-sm);
@@ -2701,7 +2693,6 @@ kbd {
   background: var(--surface);
   border: var(--bw-1) solid var(--border);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3143,12 +3134,18 @@ select.in2 {
 }
 
 .modal,
-.settings-card,
 .conflict__card {
   background: var(--surface);
   border: var(--bw-1) solid var(--border);
   border-radius: var(--r-card);
   box-shadow: var(--shadow-3);
+}
+
+/* 设置卡是页面内卡片，不是浮层：只用 1px 边，不叠阴影 */
+.settings-card {
+  background: var(--surface);
+  border: var(--bw-1) solid var(--border);
+  border-radius: var(--r-card);
 }
 
 .modal {
@@ -3199,6 +3196,7 @@ select.in2 {
   margin: 0 0 var(--sp-2);
   color: var(--text-2);
   font-size: var(--fs-sm);
+  line-height: var(--lh-prose);
 }
 
 .settings-card__warn {
@@ -3232,6 +3230,11 @@ select.in2 {
   border-radius: var(--r-card);
   font-size: var(--fs-sm);
   cursor: pointer;
+}
+
+.settings-radio:hover {
+  background: var(--state-hover);
+  border-color: var(--accent-line);
 }
 
 .settings-radio small {
@@ -3273,13 +3276,19 @@ select.in2 {
   font-size: var(--fs-sm);
 }
 
-/* 设置卡片里的分组与开关行（托盘，1.0.10） */
+/* 设置卡片里的分区标题：13/600 + 1px 分隔，与正文拉开层级 */
 .settings-section {
-  margin: 0 0 var(--sp-2);
-  color: var(--text-3);
-  font-size: var(--fs-sm);
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
+  margin: var(--sp-4) 0 var(--sp-2);
+  padding-bottom: var(--sp-1);
+  border-bottom: var(--bw-1) solid var(--border-soft);
+  color: var(--text-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
+/* 第一个分区不需要顶部空隙 */
+.settings-card__title + .settings-section {
+  margin-top: 0;
 }
 
 .settings-field {
@@ -3287,11 +3296,15 @@ select.in2 {
   align-items: flex-start;
   gap: var(--sp-2);
   margin: 0 0 var(--sp-3);
-  padding: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
   border: var(--bw-1) solid var(--border);
   border-radius: var(--r-card);
   font-size: var(--fs-sm);
   cursor: pointer;
+}
+
+.settings-field:hover {
+  background: var(--state-hover);
 }
 
 .settings-field input {
@@ -3328,10 +3341,12 @@ select.in2 {
   font-size: var(--fs-md);
 }
 
+/* 底部说明与按钮分行：说明在上，按钮贴右在下 */
 .settings-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--sp-2);
+  margin-top: var(--sp-2);
 }
 
 /* 托盘首次驻留提示（1.0.10）：窗口隐藏前短暂可见 */
@@ -3596,6 +3611,11 @@ select.in2 {
   cursor: pointer;
 }
 
+.opt2:hover {
+  border-color: var(--accent-line);
+  background: var(--state-hover);
+}
+
 .opt2 .ico {
   width: var(--ctl-sm);
   height: var(--ctl-sm);
@@ -3726,9 +3746,9 @@ select.in2 {
   height: var(--ctl-lg);
 }
 
-/* ---------------- 空状态 ---------------- */
+/* ---------------- 空 / 加载 / 错误态（src/components/States.tsx） ---------------- */
 
-.empty2 {
+.state {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -3740,22 +3760,96 @@ select.in2 {
   color: var(--text-3);
 }
 
-.empty2 .ic {
+.state__ic {
   width: var(--box-lg);
   height: var(--box-lg);
   color: var(--text-3);
 }
 
-.empty2 b {
-  font-size: var(--fs-sm);
-  color: var(--text-2);
+.state__t {
+  font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
+  color: var(--text-2);
 }
 
-.empty2 span {
+.state__d {
   font-size: var(--fs-sm);
-  line-height: var(--lh-small);
+  line-height: var(--lh-sm);
   max-width: 40ch;
+}
+
+.state__a {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.state--compact {
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+}
+
+.state--compact .state__ic {
+  width: var(--box-md);
+  height: var(--box-md);
+}
+
+.state--error .state__ic {
+  color: var(--danger);
+}
+
+.state--error .state__t {
+  color: var(--text-1);
+}
+
+/* 加载态顶端对齐：骨架行不该被垂直居中 */
+.state--loading {
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--sp-3);
+}
+
+.skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.skel__r {
+  height: var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  animation: skel-pulse var(--dur-pulse) var(--ease-standard) infinite;
+}
+
+.skel__r:nth-child(2) {
+  width: 88%;
+}
+
+.skel__r:nth-child(3) {
+  width: 74%;
+}
+
+.skel__r:nth-child(4) {
+  width: 92%;
+}
+
+.skel__r:nth-child(5) {
+  width: 66%;
+}
+
+.skel__r:nth-child(6) {
+  width: 82%;
+}
+
+@keyframes skel-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* 自测页保持可用 */
@@ -4307,13 +4401,13 @@ select.in2 {
   }
 }
 
-/* ---------------- 主体：单列 + 抽屉 ---------------- */
+/* ---------------- 主体：贴边三栏（会话库 | 终端 | 文件面板） ---------------- */
 
 .app--next .shellbody {
   position: relative;
   flex: 1;
   min-height: 0;
-  display: block;
+  display: flex;
   padding: 0;
   gap: 0;
   transition: none;
@@ -4321,23 +4415,25 @@ select.in2 {
 
 .app--next .center--stage {
   position: relative;
+  flex: 1;
   height: 100%;
   min-width: 0;
   min-height: 0;
-  display: block;
-  padding: var(--sp-3);
+  display: flex;
+  flex-direction: row;
+  padding: 0;
   gap: 0;
   overflow: hidden;
 }
 
+/* 终端贴边：边界交给相邻栏的 1px 分隔线，不再套卡片边框与投影 */
 .app--next .termcard--stage {
   height: 100%;
-  border-radius: var(--r-card);
-  transition: margin-right var(--dur-3) var(--ease-standard);
-}
-
-.app--next .center--stage[data-panel="open"][data-layout="push"] .termcard--stage {
-  margin-right: calc(var(--panel-w) + var(--sp-3));
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .app--next .termcard--stage .termbar {
@@ -4351,28 +4447,22 @@ select.in2 {
   border-radius: var(--r-control);
 }
 
-.app--next .termcard--stage .termtabs {
-  display: none;
-}
-
 .app--next .termcard--stage .termbody {
   flex: 1;
   min-height: 0;
 }
 
-/* 会话库：272px 浮层，不再挤压主视区 */
+/* 会话库：静态第一列，只留右侧 1px 分隔 */
 
 .app--next .rail {
-  position: absolute;
-  left: var(--sp-3);
-  top: var(--sp-3);
-  bottom: var(--sp-3);
+  position: relative;
   width: 272px;
-  z-index: 31;
+  flex: none;
   background: var(--surface);
-  border: var(--bw-1) solid var(--border);
-  border-radius: var(--r-card);
-  box-shadow: var(--shadow-3);
+  border: 0;
+  border-right: var(--bw-1) solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
   display: flex;
 }
@@ -4381,14 +4471,16 @@ select.in2 {
   display: none;
 }
 
-.app--next .railscrim {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  padding: 0;
-  border: 0;
-  background: var(--scrim);
-  cursor: default;
+/* 窄窗：会话库回退为浮层，避免把终端压到放不下头部按钮 */
+@media (max-width: 760px) {
+  .app--next .rail {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 31;
+    box-shadow: var(--shadow-3);
+  }
 }
 
 .app--next .rightrail {
@@ -4397,27 +4489,53 @@ select.in2 {
 
 /* ---------------- 文件抽屉 ---------------- */
 
+/* 文件面板：push 为贴边第三列，overlay 时浮在终端右缘 */
+
 .app--next .drawer {
-  position: absolute;
-  top: var(--sp-3);
-  right: var(--sp-3);
-  bottom: var(--sp-3);
-  width: var(--panel-w);
-  z-index: 26;
+  position: relative;
+  width: 0;
+  flex: none;
+  /* 抽屉在 DOM 中排在终端之前；push 模式下用 order 把它放到第三列 */
+  order: 1;
+  min-width: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--surface);
-  border: var(--bw-1) solid var(--border);
-  border-radius: var(--r-card);
-  box-shadow: var(--shadow-3);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   opacity: 0;
   visibility: hidden;
-  transform: translateX(16px);
-  transition: opacity var(--dur-3) var(--ease-standard), transform var(--dur-3) var(--ease-standard), visibility var(--dur-3);
+  overflow: hidden;
+  transition: width var(--dur-3) var(--ease-standard),
+    opacity var(--dur-2) var(--ease-standard), visibility var(--dur-3);
 }
 
 .app--next .center--stage[data-panel="open"] .drawer {
+  width: var(--panel-w);
+  border-left: var(--bw-1) solid var(--border);
+  opacity: 1;
+  visibility: visible;
+  overflow: visible;
+}
+
+.app--next .center--stage[data-layout="overlay"] .drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--panel-w);
+  border-left: var(--bw-1) solid var(--border);
+  box-shadow: var(--shadow-3);
+  z-index: 26;
+  transform: translateX(16px);
+  transition: opacity var(--dur-3) var(--ease-standard),
+    transform var(--dur-3) var(--ease-standard), visibility var(--dur-3);
+}
+
+.app--next .center--stage[data-layout="overlay"][data-panel="open"] .drawer {
   opacity: 1;
   visibility: visible;
   transform: none;
@@ -4974,9 +5092,9 @@ select.in2 {
   font-size: var(--fs-sm);
 }
 
-/* 文件列表：行高 44（与 FilePane 的 ROW_H 一致），行内左右留白 12 */
+/* 文件列表：行高 30（与 FilePane 的 ROW_H 一致），行内左右留白 12 */
 .app--next .frow {
-  height: var(--row-sm);
+  height: var(--row-xs);
   padding: 0 var(--sp-3);
   gap: var(--sp-2);
 }
@@ -4985,7 +5103,8 @@ select.in2 {
 .app--next .frow,
 .app--next .colrow {
   display: grid;
-  grid-template-columns: 15px 26px minmax(0, 1fr) 86px 104px;
+  /* 日期列 112px：`YYYY-MM-DD HH:mm`（16ch mono @12px ≈ 106px）单行放下，不再折行 */
+  grid-template-columns: 15px 26px minmax(0, 1fr) 86px 112px;
   column-gap: var(--sp-2);
   align-items: center;
 }
@@ -5028,8 +5147,9 @@ select.in2 {
   font-size: var(--fs-sm);
 }
 
+/* 日期是元信息：11px 才放得进 112px 轨道（12px 时 16ch 需 112.5px，会出省略号） */
 .app--next .frow .dt {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
 }
 
 /* 窄面板：日期列让位给文件名，避免文件名被压成一个字符 */

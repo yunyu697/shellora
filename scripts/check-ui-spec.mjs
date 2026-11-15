@@ -24,8 +24,14 @@ const LADDER = {
   sp: { 0: 2, 1: 4, 2: 8, 3: 12, 4: 16, 5: 24, 6: 32, 7: 48 },
 };
 
+// 语义别名：列表主行与正文同档（12px 只做辅助，不再承担主行）
+const FS_ALIAS = { list: "md" };
+
 // 最小窗口：低于此值没有布局模型，改为不可达（src-tauri/tauri.conf.json）
 const MIN_WINDOW = { width: 640, height: 480 };
+
+// 悬停底色对行底的 WCAG 对比度下限：低于此值视觉上"没有反馈"
+const HOVER_MIN = 1.08;
 
 // 辅助字号白名单：10px 只放计数/角标/单位，11px 只放等宽元信息与全大写标签。
 // 新增条目必须同步 docs/design/ui-spec.md §2.1 的类别登记。
@@ -175,6 +181,7 @@ function analyze(cssText, { withTokens = true, exemptions = [] } = {}) {
   for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const sel = m[1].trim().replace(/\s+/g, " ");
     if (!sel || sel.startsWith("@")) continue;
+    const selLine = clean.slice(0, m.index).split("\n").length;
     const decls = [];
     const bodyStart = m.index + m[0].indexOf("{") + 1;
     let cursor = 0;
@@ -186,7 +193,7 @@ function analyze(cssText, { withTokens = true, exemptions = [] } = {}) {
       }
       cursor += part.length + 1;
     }
-    for (const one of sel.split(",").map((s) => s.trim()).filter(Boolean)) rules.push({ sel: one, decls });
+    for (const one of sel.split(",").map((s) => s.trim()).filter(Boolean)) rules.push({ sel: one, decls, line: selLine });
   }
 
   const usedExemptions = new Set();
@@ -205,11 +212,12 @@ function analyze(cssText, { withTokens = true, exemptions = [] } = {}) {
       if (prop === "font-size" && !/^var\(--fs-/.test(value)) fail(`${where}  —— 字号必须取自 --fs-* 阶梯`);
       if (prop === "font-size") {
         const step = value.match(/^var\(--fs-([a-z0-9]+)\)$/)?.[1];
-        if (step && LADDER.fs[step] == null) fail(`${where}  —— 字号不在 6 档阶梯内`);
-        if (step && LADDER.fs[step] < LADDER.fs.sm && !auxCategory(r.sel)) {
+        const real = step ? FS_ALIAS[step] ?? step : null;
+        if (step && real && LADDER.fs[real] == null) fail(`${where}  —— 字号不在 6 档阶梯内`);
+        if (step && real && LADDER.fs[real] < LADDER.fs.sm && !auxCategory(r.sel)) {
           fail(
             `${where}  —— 正文/可读标签不得低于 12px（--fs-sm）；` +
-              `--fs-${step}(${LADDER.fs[step]}px) 仅限计数/角标/单位等辅助信息，确属辅助请登记 AUX_FS_ALLOW 与 ui-spec.md §2.1`,
+              `--fs-${step}(${LADDER.fs[real]}px) 仅限计数/角标/单位等辅助信息，确属辅助请登记 AUX_FS_ALLOW 与 ui-spec.md §2.1`,
           );
         }
       }
@@ -305,6 +313,11 @@ function analyze(cssText, { withTokens = true, exemptions = [] } = {}) {
       fail(`同一元素半径不一致：${family} 同时出现 ${detail}`);
     }
   }
+
+  // 交互态 / 悬停对比 / 阴影范围：本次审计的三类根因，落成常驻规则
+  checkHoverContrast(cssText, fail);
+  checkInteractiveState(cssText, rules, fail);
+  checkShadowScope(rules, fail);
 
   // 豁免失效：清单里的条目必须仍能匹配到声明
   for (const e of exemptions) {
@@ -406,6 +419,124 @@ function checkWindowFloor(fail) {
   return { w: MIN_WINDOW.width, h: MIN_WINDOW.height, files: checked };
 }
 
+// ---------- 悬停对比度 ----------
+// 规则：--state-hover / --state-hover-row 对所在底色必须 ≥ HOVER_MIN（WCAG 对比度）。
+// 反例（本次审计抓到）：亮色用 #fafbfc 对白底 1.04:1，肉眼等于没有 hover；暗色则比行底更深。
+function parseBlockVars(cssText, re) {
+  const m = cssText.match(re);
+  const out = new Map();
+  if (!m) return out;
+  for (const d of m[1].matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/g)) out.set(d[1], d[2].trim());
+  return out;
+}
+
+function resolveVar(map, value, depth = 0) {
+  if (depth > 6) return String(value);
+  const ref = String(value).trim().match(/^var\((--[a-z0-9-]+)\)$/);
+  if (ref && map.has(ref[1])) return resolveVar(map, map.get(ref[1]), depth + 1);
+  return String(value).trim();
+}
+
+function relLum(hex) {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const [r, g, b] = [0, 2, 4]
+    .map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(a, b) {
+  const [hi, lo] = [relLum(a), relLum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const HEX = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
+
+function checkHoverContrast(cssText, fail) {
+  const themes = [
+    { name: "dark", re: /:root,\s*\[data-theme="dark"\]\s*\{([\s\S]*?)\}/ },
+    { name: "light", re: /\[data-theme="light"\]\s*\{([\s\S]*?)\}/ },
+  ];
+  const blocks = themes.map((t) => ({ name: t.name, vars: parseBlockVars(cssText, t.re) }));
+  if (blocks.some((b) => !b.vars.size)) return; // 片段/负向用例没有主题块时跳过
+  for (const { name, vars } of blocks) {
+    const pairs = [
+      ["--state-hover-row", "--surface"],
+      ["--state-hover", "--surface-2"],
+    ];
+    for (const [fg, bg] of pairs) {
+      const a = resolveVar(vars, vars.get(fg) ?? "");
+      const b = resolveVar(vars, vars.get(bg) ?? "");
+      if (!HEX.test(a) || !HEX.test(b)) {
+        fail(`base.css:1  ${name}  —— ${fg}(${a}) / ${bg}(${b}) 不是十六进制，无法核算悬停对比度`);
+        continue;
+      }
+      const ratio = contrastRatio(a, b);
+      if (ratio < HOVER_MIN) {
+        fail(
+          `base.css:1  ${name}  —— 悬停对比度不足：${fg}(${a}) 对 ${bg}(${b}) 仅 ${ratio.toFixed(3)}:1，` +
+            `要求 ≥ ${HOVER_MIN}:1（亮色要看得见、暗色不得变深）`,
+        );
+      }
+    }
+  }
+}
+
+// ---------- 交互三态 ----------
+// 规则：所有 cursor:pointer 的元素必须有 :hover（自身或祖先/父级块），
+// 按钮类还要有 :active；全局必须存在 :focus-visible 兜底。
+const ACTIVE_REQUIRED_RE = /(btn|pill|tab|add|qb|ib|dop|cb|toggle|iconbtn|abtn)$/;
+
+function checkInteractiveState(cssText, rules, fail) {
+  // 全局兜底也算数：一条 :where(button…) 规则可以覆盖所有原生按钮
+  const hasGlobalState = (state) =>
+    [...cssText.matchAll(/([^{}]*)\{[^{}]*\}/g)].some(
+      (m) => m[1].includes(`:${state}`) && /\bbutton\b|\[role="button"\]/.test(m[1]),
+    );
+  if (!hasGlobalState("focus-visible")) {
+    fail("base.css:1  全局  —— 缺少 :focus-visible 兜底（button/a/input/[tabindex] 键盘不可见）");
+  }
+  const globalActive = hasGlobalState("active");
+
+  const hasState = (base, state) => rules.some((r) => r.sel.startsWith(`${base}:${state}`));
+  const seen = new Set();
+  for (const r of rules) {
+    if (!r.decls.some((d) => d.prop === "cursor" && d.value === "pointer")) continue;
+    if (/:(hover|active|focus|disabled|checked)\b/.test(r.sel)) continue;
+    if (seen.has(r.sel)) continue;
+    seen.add(r.sel);
+    const base = r.sel;
+    const parentBlock = base.replace(/__[A-Za-z0-9-]+$/, "");
+    const ancestorHover =
+      base.split(" ").slice(0, -1).some((part) => part && hasState(part, "hover")) ||
+      (parentBlock !== base && hasState(parentBlock, "hover"));
+    if (!hasState(base, "hover") && !ancestorHover) {
+      fail(`base.css:${r.line}  ${base}  —— 可点击但缺少 :hover（视觉上"点了才知道能点"）`);
+    }
+    if (ACTIVE_REQUIRED_RE.test(base) && !hasState(base, "active") && !globalActive) {
+      fail(`base.css:${r.line}  ${base}  —— 按钮类缺少 :active（没有按压反馈）`);
+    }
+  }
+}
+
+// ---------- 阴影范围 ----------
+// 规则：shadow-2 / shadow-3 只允许浮层（弹窗、抽屉、菜单、提示）使用；
+// 页面内卡片用 1px 边表达层级，否则就是"卡中卡"。
+const FLOATING_RE =
+  /(modal|dialog|conflict__card|paste-guard__card|confdlg2|tray-toast|drawer|ctxmenu|rail|menu|popover|tooltip|toast|popup|overlay|sheet)/;
+
+function checkShadowScope(rules, fail) {
+  for (const r of rules) {
+    if (/^(from|to|\d+(\.\d+)?%)$/.test(r.sel)) continue; // keyframes
+    const d = r.decls.find((x) => x.prop === "box-shadow" && /var\(--shadow-[23]\)/.test(x.value));
+    if (!d) continue;
+    if (!FLOATING_RE.test(r.sel)) {
+      fail(`base.css:${d.line}  ${r.sel}  —— 非浮层不得用 shadow-2/3（卡中卡），页面内卡片请只留 1px 边`);
+    }
+  }
+}
+
 // ---------- 负向自检 ----------
 function selfTest() {
   const cases = [
@@ -430,10 +561,27 @@ function selfTest() {
       css: ".srow { border-radius: var(--r-control); }\n.app--next .srow { border-radius: var(--r-card); }",
       expect: "同一元素半径不一致：srow",
     },
+    // ---- 本次质感审计的三类根因（负向用例必须被抓到） ----
+    { name: "缺悬停", css: ".navpill { cursor: pointer; }", expect: "可点击但缺少 :hover" },
+    {
+      name: "缺按压",
+      css: ".navpill { cursor: pointer; }\n.navpill:hover { background: var(--state-hover); }",
+      expect: "按钮类缺少 :active",
+    },
+    {
+      name: "悬停对比",
+      css:
+        ':root, [data-theme="dark"] { --surface: #111821; --surface-2: #0d131a; --state-hover: #131b24; --state-hover-row: #131b24; }\n' +
+        '[data-theme="light"] { --surface: #ffffff; --surface-2: #fafbfc; --state-hover: #fafbfc; --state-hover-row: #fafbfc; }',
+      expect: "悬停对比度不足",
+    },
+    { name: "卡片投影", css: ".termcard { box-shadow: var(--shadow-2); }", expect: "非浮层不得用 shadow-2/3" },
   ];
   const clean =
+    ":where(button, [tabindex]):focus-visible { outline: var(--bw-2) solid var(--accent); }\n" +
     ".x { padding: var(--sp-2); font-size: var(--fs-md); line-height: var(--lh-md); }\n" +
-    ".x .count { font-size: var(--fs-2xs); }";
+    ".x .count { font-size: var(--fs-2xs); }\n" +
+    ".srow .nm { font-size: var(--fs-list); line-height: var(--lh-sm); }";
   let ok = 0;
   console.log("负向自检：每类违规必须被捕获并指出位置");
   for (const c of cases) {

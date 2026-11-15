@@ -11,7 +11,6 @@
     { "selector": ".queue2", "property": "height", "value": "188px", "reason": "传输队列区高度", "owner": "design-system" },
     { "selector": ".qrow2 .bar", "property": "width", "value": "240px", "reason": "队列进度条基准宽度，列内自适应", "owner": "design-system" },
     { "selector": ".qrow2 .rate", "property": "width", "value": "76px", "reason": "队列速率列宽", "owner": "design-system" },
-    { "selector": ".termtab__text", "property": "max-width", "value": "160px", "reason": "终端标签标题最大宽度", "owner": "design-system" },
     { "selector": ".qgroup__children", "property": "max-height", "value": "120px", "reason": "队列分组展开后的高度上限", "owner": "design-system" },
     { "selector": ".sftp-notice", "property": "max-width", "value": "380px", "reason": "提示条最大宽度，避免遮挡文件表", "owner": "design-system" },
     { "selector": ".pane__theme", "property": "max-width", "value": "150px", "reason": "主题选择器最大宽度", "owner": "design-system" },

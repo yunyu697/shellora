@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Icon } from "../../components/Icons";
+import { EmptyState } from "../../components/States";
 import {
   cancelRemoteDir,
   enqueueTransfers,
@@ -1065,9 +1066,13 @@ export function SftpManager({
         </header>
 
         {groupOrder.length === 0 && looseTasks.length === 0 ? (
-          <p className="qempty">
-            {tr("把左侧本地文件/目录拖到右侧远端目录即上传，反向即下载；Ctrl/Shift 可多选，空白处拖动可框选。")}
-          </p>
+          <EmptyState
+            compact
+            className="qempty"
+            icon="layers"
+            title={tr("暂无传输")}
+            desc={tr("把左侧本地文件/目录拖到右侧远端目录即上传，反向即下载；Ctrl/Shift 可多选，空白处拖动可框选。")}
+          />
         ) : (
           <ul className="qlist">
             {groupOrder.map((gid) => {

@@ -55,12 +55,15 @@
 | --- | ---: | --- | ---: | --- | --- | --- |
 | `--fs-2xs` | 10px | `--lh-2xs` | 13px | `--fw-semibold` | `--ls-caps` | **仅辅助**：计数、角标、单位、时间戳、`kbd` |
 | `--fs-xs` | 11px | `--lh-xs` | 15px | `--fw-medium` | `--ls-wide` | **仅辅助**：等宽元信息、全大写分组标签、图表刻度 |
-| `--fs-sm` | 12px | `--lh-sm` | 16px | `--fw-medium` | `--ls-normal` | **正文下限**：字段标签、列表主行、紧凑控件、状态文字 |
+| `--fs-sm` | 12px | `--lh-sm` | 16px | `--fw-medium` | `--ls-normal` | **正文下限**：字段标签、紧凑控件、状态文字 |
 | `--fs-md` | 13px | `--lh-md` | 18px | `--fw-regular` | `--ls-normal` | 正文（默认，`body` 使用） |
 | `--fs-lg` | 15px | `--lh-lg` | 20px | `--fw-semibold` | `--ls-tight` | 区块标题、卡片标题 |
 | `--fs-xl` | 17px | `--lh-xl` | 22px | `--fw-semibold` | `--ls-tight` | 页面 / 面板标题 |
 
 原 9px 档已取消，`--fs-2xs` 抬到 10px 作为下限；原 17px 的 `--fs-2xl` 与 `--fs-xl` 合并（视觉尺寸不变）。
+
+**列表主行用 `--fs-list`（= `--fs-md` 13px）。** 会话名、文件名这类"用户扫读的第一层信息"不得再落到
+12px：12px 只承担正文下限与紧凑控件。检查器把 `--fs-list` 解析为 md 档，不允许把它改成更小的值。
 
 
 特殊行高：
@@ -184,12 +187,16 @@
 
 | 令牌 | 值 | 用在哪 |
 | --- | ---: | --- |
-| `--row-sm` | 44px | 文件行、队列表格行、表头 |
-| `--row-md` | 56px | 会话行、最近连接行 |
+| `--row-xs` | 30px | 密集行：文件行（`FilePane` 的 `ROW_H`）、传输队列行 |
+| `--row-list` | 44px | 会话行、最近连接行（两行文字 + 状态点） |
+| `--row-sm` | 44px | 表格区块头（队列头等） |
 | `--bar-lg` | 48px | 文件面板标题条 |
 | `--bar-xl` | 64px | 应用标题栏 |
 
-文件行高同时是 `FilePane.tsx` 中 `ROW_H = 44` 的唯一来源，两侧必须一致（`check-ui-metrics.mjs` 校验）。
+行高与主字号的比例是硬指标：**会话行 ≤ 3.6×（44 / 13 = 3.4），文件行 ≤ 2.5×（30 / 13 = 2.3）**。
+参照 VS Code（列表 22 / 字号 13 = 1.7）与 Termius（约 40 / 14 = 2.9），超过 3.6 会出现"又松又弱"的空壳感。
+
+文件行高同时是 `FilePane.tsx` 中 `ROW_H = 30` 的唯一来源，两侧必须一致（`check-ui-metrics.mjs` 校验）。
 
 ### 3.3 分段控件与标签
 
@@ -309,15 +316,21 @@
 
 | 令牌 | 用途 |
 | --- | --- |
-| `--shadow-1` | 抬升 1 级：标签页激活、搜索框、卡片 |
-| `--shadow-2` | 浮层：下拉菜单、会话库、抽屉 |
+| `--shadow-1` | 抬升 1 级：标签页激活、搜索框 |
+| `--shadow-2` | 浮层：下拉菜单、抽屉、拖拽气泡 |
 | `--shadow-3` | 模态：对话框、粘贴拦截、更新卡片 |
 | `--focus` | 焦点环，不用 outline 颜色代替 |
+
+**阴影只属于浮层。** 页面内卡片（终端卡、编辑器卡、文件面板、传输队列、设置卡、会话行）一律
+`border: var(--bw-1) solid var(--border)` 表达边界，**不得再叠 `--shadow-2/3`** —— 卡片套卡片的双线 +
+双阴影会让界面"糊"，是"半成品感"的直接来源。检查器规则 `shadow-scope` 只放行选择器名里含
+`modal / dialog / drawer / rail / ctxmenu / toast / popover / tooltip / sheet / overlay` 的浮层。
 
 **应该用**
 
 ```css
 .ctxmenu { border-radius: var(--r-card); box-shadow: var(--shadow-2); }
+.termcard { border: var(--bw-1) solid var(--border); }   /* 内容卡：只有边 */
 ```
 
 **不该用**
@@ -325,6 +338,17 @@
 ```css
 .ctxmenu { border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.42); }
 ```
+
+**外壳贴边三栏。** 应用主体 `.app--next .shellbody` 不设外边距、不做圆角浮层：左栏会话库
+`.rail` 272px 为静态第一列，只留右侧 1px `--border` 分隔；终端 `.termcard--stage` 铺满剩余宽度，
+`border: 0`、`border-radius: 0`、`box-shadow: none`；文件面板在 `push` 下是第三列
+（展开 `width: var(--panel-w)`，收起 `width: 0`，不占位），`overlay` 下才是绝对定位浮层
+（浮层，允许 `--shadow-3`）。三列头部统一取 `--ctl-xl`，保证横向对齐。
+
+**ListRow 行基座。** 会话行 `.srow`、文件行 `.frow`、队列行 `.qrow2` 共用 `base.css`
+「ListRow：列表行基座」一节的四态与选中表达：120ms 背景/投影过渡、hover 用 `--state-hover-row`、
+按压用 `--state-press-row`、`:focus-visible` 用 2px accent 内描边、选中（`.srow.on` / `.frow.sel`）
+为 `--selected` + 左 2px accent 条。新增列表行必须复用这组选择器，不得另写一套 hover/active。
 
 ### 5.4 窗口圆角：交给系统，不自绘
 
@@ -436,16 +460,32 @@ A/B 对照（同一窗口，只改一个属性，取上边缘中点 2 个物理�
 
 | 状态 | 标准表达 | 令牌 | 不该用 |
 | --- | --- | --- | --- |
-| 悬停（图标按钮/菜单项） | `background: var(--state-hover)` | `--state-hover` = `surface-3` | 自造 `rgba(255,255,255,.06)` |
-| 悬停（列表行） | `background: var(--state-hover-row)` | `--state-hover-row` = `surface-2` | 加 `transform: translateX(2px)` |
+| 悬停（图标按钮/菜单项） | `background: var(--state-hover)` | `--state-hover` = `#1b2734` / `#e9eef5` | 自造 `rgba(255,255,255,.06)` |
+| 悬停（列表行） | `background: var(--state-hover-row)` | `--state-hover-row` = `#1b2734` / `#e9eef5` | 用 `--surface-2`（比行底更深/几乎不可见） |
 | 悬停（浮层内抬升） | `background: var(--state-hover-raised)` | `--state-hover-raised` = `surface` | 改边框宽度导致抖动 |
 | 悬停（强调按钮） | `background: var(--state-hover-primary)` | `--state-hover-primary` = `accent-2` | 在 `:hover` 里直接写 `var(--accent-2)` |
 | 悬停（危险） | `background: var(--state-hover-danger)` + 前景 `--danger` | — | 直接用红色背景 + 白字 |
 | 悬停（窗口关闭键） | `background: var(--state-hover-close)` | `--state-hover-close` = `#e81123` | 在组件里硬编码系统红 |
-| 按下 | `background: var(--state-press)`，不加位移 | `--state-press` | `transform: scale(.97)` |
-| 选中 | `background: var(--selected)` + `box-shadow: inset 0 0 0 1px var(--selected-line)` | 已有 | 只改文字颜色 |
-| 焦点 | `box-shadow: var(--focus)`，`outline: none` | `--state-focus` | 去掉焦点环 |
+| 按下（行） | `background: var(--state-press-row)`，不加位移 | `--state-press-row` = `#0a1016` / `#dfe6ef` | `transform: scale(.97)` |
+| 选中 | `background: var(--selected)` + `box-shadow: inset 2px 0 0 var(--accent)` | 已有 | 只改文字颜色、或叠阴影当浮卡 |
+| 焦点 | `:focus-visible` 全局兜底：`outline: var(--bw-2) solid var(--accent)` + `outline-offset: var(--focus-offset)` | `--state-focus` | 去掉焦点环、只用 `outline: none` |
 | 禁用 | `opacity: var(--state-disabled-opacity)` + `cursor: not-allowed` | 0.45 | 用 `color: #666` 手调 |
+
+**悬停必须是"提亮"，不是"变色"。** 两套主题的 `--state-hover` / `--state-hover-row` 对所在底色的
+WCAG 对比度必须 ≥ **1.08:1**（亮色要看得见，暗色不得比行底更深）。当前实测：
+
+| 主题 | 悬停色 | 对底色 | 对比度 |
+| --- | --- | --- | ---: |
+| dark | `#1b2734` | `--surface` `#111821` | 1.178:1 |
+| dark | `#1b2734` | `--surface-2` `#0d131a` | 1.232:1 |
+| light | `#e9eef5` | `--surface` `#ffffff` | 1.166:1 |
+| light | `#e9eef5` | `--surface-2` `#fafbfc` | 1.125:1 |
+
+**三态是准入条件，不是加分项。** 每个 `cursor: pointer` 的元素必须有 `:hover`；按钮类还要有 `:active`；
+键盘 Tab 必须能看到焦点。检查器规则 `missing-interactive-state` 按 "自身或父级块" 判定，
+所以 `.srow .tx`、`.termtab__label` 这类子元素可以由 `.srow:hover` / `.termtab:hover` 覆盖。
+行内删除按钮（`.srow__x`）默认 `opacity: 0`，必须在 `:hover`、`:focus-within`、`:focus-visible`
+三种情况下都显示为 `opacity: 1`，否则键盘用户永远够不到。
 
 **应该用**
 
@@ -478,7 +518,7 @@ A/B 对照（同一窗口，只改一个属性，取上边缘中点 2 个物理�
 ```text
 界面规范检查通过：字号 6 档（下限 10px，正文 ≥12px）/ 行高 6 组 + 3 特殊 / 圆角 4 档（卡片 8 / 控件 6 / 胶囊 / 全圆）/ 控件高 10 档 / 图标 6 档
 最小窗口 640×480（更窄无布局模型，矩阵不设该档）
-令牌引用 778 处 / 裸值 0 处 / 豁免 28 处
+令牌引用 774 处 / 裸值 0 处 / 豁免 27 处
 ```
 
 三个数字的口径：
@@ -508,15 +548,18 @@ A/B 对照（同一窗口，只改一个属性，取上边缘中点 2 个物理�
 
 ### 8.3 负向自检
 
-`pnpm lint:ui:self` 对 17 类规则各注入一条故意违规（间距 7px、字号 13.5px、行高 12px、圆角裸值 9px、
+`pnpm lint:ui:self` 对 21 类规则各注入一条故意违规（间距 7px、字号 13.5px、行高 12px、圆角裸值 9px、
 描边 2px、控件高 26px、图标 13px、状态色 `#1b2836`、动效 140ms、未登记宽高 333px、
 正文用 10px、正文用 11px、越档字号 `--fs-3xl`、越档圆角 `--r-sm`、控件误用卡片档、
-容器误用控件档、同类元素两档并存），再加一条合规对照（含“计数用 10px”），
-要求全部被捕获且消息含行号：
+容器误用控件档、同类元素两档并存、**缺悬停**、**缺按压**、**悬停对比不足**、**内容卡误用 shadow-2**），
+再加一条合规对照（含“计数用 10px”、`--fs-list` 别名），要求全部被捕获且消息含行号：
 
 ```text
-负向自检通过：18/18（17 类违规 + 1 条合规对照）
+负向自检通过：22/22（21 类违规 + 1 条合规对照）
 ```
+
+后 4 类用例就是本次质感审计抓到的真实问题，作为回归锚点：只要有人把 `.navpill` 的 hover 删掉、
+把 `--state-hover-row` 改回 `surface-2`、或给内容卡加回 `shadow-2`，CI 立刻失败。
 
 最小窗口下限也在同一脚本里校验：`tauri.conf.json` 的 `minWidth`/`minHeight` 必须等于 640×480，
 否则失败并提示“更窄没有布局模型”。
@@ -524,8 +567,8 @@ A/B 对照（同一窗口，只改一个属性，取上边缘中点 2 个物理�
 `lint:spacing` 与 `lint:metrics` 同时通过：
 
 ```text
-间距检查通过：CSS 363 条间距声明、内联 4 处；令牌 21 个，档位 2/4/8/12/16/24/32/48px
-界面度量检查通过：命中区 8 项 ≥28，文件行高 44px 单源，表头/行同栅格，左栏 6 处 12px 节奏，同名选择器 4 项唯一
+间距检查通过：CSS 362 条间距声明、内联 4 处；令牌 20 个，档位 2/4/8/12/16/24/32/48px
+界面度量检查通过：命中区 8 项 ≥28，文件行高 30px 单源，表头/行同栅格，左栏 6 处 12px 节奏，同名选择器 4 项唯一
 ```
 
 ---

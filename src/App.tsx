@@ -36,6 +36,7 @@ import type {
   SessionRow,
 } from "./lib/ipc/types";
 import { Icon } from "./components/Icons";
+import { EmptyState } from "./components/States";
 import { TerminalPane } from "./features/terminal/TerminalPane";
 import { SftpManager, type SftpSummary } from "./features/sftp/SftpManager";
 import { UpdateButton } from "./features/updater/UpdateButton";
@@ -1079,13 +1080,6 @@ export default function App() {
     ? `${activeTab.label} · ${STATE_TEXT[activeTab.state.state] ?? activeTab.state.state}`
     : tr("无活动会话");
 
-  const panelStatus = panelOpen
-    ? tr("文件面板 · {mode} · {width}px", {
-        mode: panelLayout === "push" ? tr("挤压中") : tr("覆盖中"),
-        width: Math.round(panelWidth),
-      })
-    : tr("文件面板已收起");
-
   const onTitleBarMouseDown = (ev: ReactMouseEvent) => {
     if (!IS_TAURI || ev.button !== 0) return;
     const el = ev.target as HTMLElement;
@@ -1535,14 +1529,6 @@ export default function App() {
             </>
           )}
         </aside>
-        {!railCollapsed ? (
-          <button
-            type="button"
-            className="railscrim"
-            aria-label={tr("收起会话库")}
-            onClick={() => setRailCollapsed(true)}
-          />
-        ) : null}
 
         <main
           className="center center--stage"
@@ -1940,28 +1926,18 @@ export default function App() {
                         </p>
                       ) : null}
                     </div>
-                    <div className="scard">
-                      <div className="sh">
-                        <Icon name="terminal" /> {tr("夹具联调")}
-                      </div>
-                      <p className="hknote">
-                        <span className="mono">
-                          cargo run --features fixture --bin fixture_sshd
-                        </span>
-                        <br />
-                        {tr("默认 alice / secret，端口 2222。")}
-                      </p>
-                    </div>
-                    {sessions.length > 0 ? (
+                    {import.meta.env.DEV ? (
                       <div className="scard">
                         <div className="sh">
-                          <Icon name="clock" /> {tr("最近会话")}
+                          <Icon name="terminal" /> {tr("夹具联调")}
                         </div>
-                        {sessions.slice(0, 4).map((s) => (
-                          <div className="frowx" key={s.id}>
-                            <span className="nm ell">{s.name}</span>
-                          </div>
-                        ))}
+                        <p className="hknote">
+                          <span className="mono">
+                            cargo run --features fixture --bin fixture_sshd
+                          </span>
+                          <br />
+                          {tr("默认 alice / secret，端口 2222。")}
+                        </p>
                       </div>
                     ) : null}
                   </aside>
@@ -2058,7 +2034,6 @@ export default function App() {
                     <Icon name="terminal" />
                   </span>
                   <span className="nm">{tr("Terminal")}</span>
-                  <span className="meta">{terminalTitle}</span>
                   {tabs.length > 0 ? (
                     <span className="meta">
                       · {tabs.length}/{MAX_TABS}
@@ -2073,55 +2048,18 @@ export default function App() {
                 </div>
 
                 <div className="termbody">
-                  {tabs.length > 0 ? (
-                    <div className="termtabs">
-                      {tabs.map((tab) => (
-                        <div
-                          key={tab.key}
-                          className={tab.key === activeKey ? "termtab on" : "termtab"}
-                        >
-                          <button
-                            type="button"
-                            className="termtab__label"
-                            onClick={() => setActiveKey(tab.key)}
-                          >
-                            <span className={`dot dot--${tab.state.state}`} aria-hidden />
-                            <span className="termtab__text">{tab.label}</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="termtab__close"
-                            aria-label={tr("关闭标签")}
-                            onClick={() => closeTab(tab.key)}
-                          >
-                            <Icon name="x" />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        className="iconbtn"
-                        title={tr("新建连接")}
-                        onClick={() => setView("connect")}
-                      >
-                        <Icon name="plus" />
-                      </button>
-                    </div>
-                  ) : null}
                   <div className="panes">
                     {tabs.length === 0 ? (
-                      <div className="empty2">
-                        <Icon name="terminal" />
-                        <b>{tr("暂无终端会话")}</b>
-                        <span>{tr("在左侧会话库打开连接，或新建一个 SSH 连接。")}</span>
-                        <button
-                          type="button"
-                          className="btn btn--primary"
-                          onClick={() => setView("connect")}
-                        >
-                          <Icon name="plus" /> {tr("新建连接")}
-                        </button>
-                      </div>
+                      <EmptyState
+                        icon="terminal"
+                        title={tr("暂无终端会话")}
+                        desc={tr("在左侧会话库打开连接，或新建一个 SSH 连接。")}
+                        action={
+                          <button type="button" className="btn btn--primary" onClick={() => setView("connect")}>
+                            <Icon name="plus" /> {tr("新建连接")}
+                          </button>
+                        }
+                      />
                     ) : null}
                     {tabs.map((tab, index) => (
                       <TerminalPane
@@ -2252,20 +2190,13 @@ export default function App() {
           <span className={activeTab?.state.state === "ready" ? "dot" : "dot off"} />
           <b>{terminalTitle}</b>
         </span>
-        <span className="cell cell--mid">
-          {tr("本地")} <b className="num">{(sftpSummary?.active ?? 0) + (sftpSummary?.queued ?? 0)}</b> {tr("个传输")}
-        </span>
-        <span className="cell cell--mid">
-          SFTP <b className="num">{sftpSummary?.done ?? 0}</b> {tr("已完成")}
-        </span>
-        <span className="cell cell--low" title={panelStatus}>
-          <b>{panelStatus}</b>
-        </span>
-        <span className="cell" title={message ? message.text : tr("玻璃拟态关闭 · 实色面板")}>
-          {message ? message.text : tr("玻璃拟态关")}
-        </span>
+        {(sftpSummary?.active ?? 0) + (sftpSummary?.queued ?? 0) > 0 ? (
+          <span className="cell cell--mid">
+            <b className="num">{(sftpSummary?.active ?? 0) + (sftpSummary?.queued ?? 0)}</b>{" "}
+            {tr("个传输")}
+          </span>
+        ) : null}
         <span className="grow" />
-        <span className="cell cell--fixed">{theme === "light" ? "LIGHT" : "DARK"}</span>
         <span className="cell cell--fixed">Shellora {appVersion ? `v${appVersion}` : "dev"}</span>
       </footer>
 

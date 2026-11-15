@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, MouseEvent as ReactMouseEvent } from "react";
 
 import { Icon } from "../../components/Icons";
+import { EmptyState, ErrorState, LoadingState } from "../../components/States";
 import type { DirEntry } from "../../lib/ipc/types";
 import { tr } from "../../i18n";
 
-const ROW_H = 44;
+const ROW_H = 30;
 const OVERSCAN = 4;
 
 export type PaneSide = "local" | "remote";
@@ -108,16 +109,16 @@ export function formatMtime(ms: number): string {
   )}:${pad(d.getMinutes())}`;
 }
 
-/** 按后缀给出文件类型图标与色块，视觉分类与设计稿一致。 */
+/** 按后缀给出文件类型图标；色块只保留两个语义：目录用 accent，其余中性。 */
 function fileKind(entry: DirEntry): { icon: string; tint: string } {
   if (entry.isDir) return { icon: "folder", tint: "tint-blue" };
   if (entry.isSymlink) return { icon: "network", tint: "tint-slate" };
   const name = entry.name.toLowerCase();
-  if (/\.(zip|tar|tgz|gz|bz2|xz|7z|rar)$/.test(name)) return { icon: "archive", tint: "tint-violet" };
-  if (/\.(png|jpg|jpeg|gif|webp|svg|ico)$/.test(name)) return { icon: "image", tint: "tint-amber" };
-  if (/\.(md|txt|log)$/.test(name)) return { icon: "log", tint: "tint-teal" };
+  if (/\.(zip|tar|tgz|gz|bz2|xz|7z|rar)$/.test(name)) return { icon: "archive", tint: "tint-slate" };
+  if (/\.(png|jpg|jpeg|gif|webp|svg|ico)$/.test(name)) return { icon: "image", tint: "tint-slate" };
+  if (/\.(md|txt|log)$/.test(name)) return { icon: "log", tint: "tint-slate" };
   if (/\.(js|ts|tsx|jsx|json|html|css|sh|py|rs|go|yml|yaml|toml)$/.test(name))
-    return { icon: "code", tint: "tint-teal" };
+    return { icon: "code", tint: "tint-slate" };
   return { icon: "file", tint: "tint-slate" };
 }
 
@@ -414,10 +415,12 @@ export function FilePane({
       </div>
 
       {idle ? (
-        <div className="empty2">
-          <Icon name="server" />
-          <b>{tr("远端会话未就绪")}</b>
-          <span>{idleHint ?? tr("从会话库打开一个连接后，这里会显示远端目录。")}</span>
+        <div className="flist__state">
+          <EmptyState
+            icon="server"
+            title={tr("远端会话未就绪")}
+            desc={idleHint ?? tr("从会话库打开一个连接后，这里会显示远端目录。")}
+          />
         </div>
       ) : (
         <div
@@ -438,7 +441,29 @@ export function FilePane({
           onDrop={dropOnPane}
         >
           {entries.length === 0 && !loading ? (
-            <p className="flist__empty">{tr("空目录")}</p>
+            note ? (
+              <div className="flist__state">
+                <ErrorState
+                  compact
+                  title={tr("无法读取目录")}
+                  desc={note}
+                  action={
+                    <button type="button" className="btn" onClick={onRefresh}>
+                      {tr("刷新")}
+                    </button>
+                  }
+                />
+              </div>
+            ) : (
+              <div className="flist__state">
+                <EmptyState
+                  compact
+                  icon="folder"
+                  title={tr("空目录")}
+                  desc={tr("这里还没有文件；拖入即可上传，或点刷新重读。")}
+                />
+              </div>
+            )
           ) : (
             <div className="flist__inner" style={{ height: entries.length * ROW_H }}>
               {entries.slice(visible.start, visible.end).map((entry, offset) => {
@@ -495,7 +520,7 @@ export function FilePane({
               })}
             </div>
           )}
-          {loading ? <div className="flist__loading">{tr("加载中…")}</div> : null}
+          {loading ? <LoadingState className="flist__loading" title={tr("加载中…")} rows={8} /> : null}
           {marquee && marquee.width > 3 && marquee.height > 3 ? (
             <div
               className="marquee"
