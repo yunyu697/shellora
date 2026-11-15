@@ -15,7 +15,10 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Component, Path, PathBuf};
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use russh::server::{Auth, Config, Handler, Session};
@@ -24,13 +27,55 @@ use russh_sftp::protocol::{
     Attrs, Data, File, FileAttributes, Handle, Name, OpenFlags, Status, StatusCode, Version,
 };
 use russh_sftp::server::{StatusReply, Handler as SftpHandler};
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{
+    AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWrite, AsyncWriteExt, ReadBuf,
+};
 use tokio::sync::Mutex;
 
 const DEFAULT_USER: &str = "alice";
 const DEFAULT_PASS: &str = "secret";
 
 const TOP_BYTES_PER_SEC: u64 = 2 * 1024 * 1024;
+
+/// SFTP 服务端行为开关，由 `FIXTURE_SFTP_MODE` 控制，用来模拟真实环境里的
+/// 「列目录中途被断开」「只读账号 / 受限 chroot」「小批量 readdir」等情况。
+#[derive(Debug, Clone, Copy)]
+struct SftpMode {
+    /// `drop=N`：列 `dropzone` 时返回第 N 批后关闭通道（模拟服务端中途断开）。
+    drop_after_readdirs: Option<u64>,
+    /// `readonly`：所有写类操作返回 PermissionDenied。
+    readonly: bool,
+    /// `batch=N`：每批 readdir 条目数，默认 100。
+    batch: usize,
+}
+
+impl Default for SftpMode {
+    fn default() -> Self {
+        Self {
+            drop_after_readdirs: None,
+            readonly: false,
+            batch: 100,
+        }
+    }
+}
+
+impl SftpMode {
+    fn parse(spec: &str) -> Self {
+        let mut mode = Self::default();
+        for token in spec.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+            if token == "readonly" {
+                mode.readonly = true;
+            } else if let Some(n) = token.strip_prefix("drop=") {
+                mode.drop_after_readdirs = n.parse().ok();
+            } else if let Some(n) = token.strip_prefix("batch=") {
+                if let Ok(n) = n.parse::<usize>() {
+                    mode.batch = n.max(1);
+                }
+            }
+        }
+        mode
+    }
+}
 
 struct SessionHandler {
     term: String,
@@ -41,10 +86,11 @@ struct SessionHandler {
     /// bench 任务临时取走通道，结束后归还，保证可连续跑多次。
     channels: Arc<Mutex<HashMap<ChannelId, russh::Channel<russh::server::Msg>>>>,
     root: PathBuf,
+    sftp_mode: SftpMode,
 }
 
 impl SessionHandler {
-    fn new(root: PathBuf) -> Self {
+    fn new(root: PathBuf, sftp_mode: SftpMode) -> Self {
         Self {
             term: String::new(),
             cols: 80,
@@ -53,6 +99,7 @@ impl SessionHandler {
             shell_id: None,
             channels: Arc::new(Mutex::new(HashMap::new())),
             root,
+            sftp_mode,
         }
     }
 
@@ -298,9 +345,16 @@ impl Handler for SessionHandler {
         // 与真实 sshd 一样把 SFTP 子系统放到独立任务里跑：
         // 若在此 await 整个会话，会话 handler 会被占住，取消/关闭通道时容易卡死。
         let root = self.root.clone();
+        let mode = self.sftp_mode;
+        let kill = Arc::new(AtomicBool::new(false));
         eprintln!("sftp subsystem start id={channel:?} root={}", root.display());
+        let kill_for_stream = kill.clone();
         tokio::spawn(async move {
-            russh_sftp::server::run(ch.into_stream(), SftpDisk::new(root)).await;
+            let stream = KilledStream {
+                inner: ch.into_stream(),
+                kill: kill_for_stream,
+            };
+            russh_sftp::server::run(stream, SftpDisk::new(root, mode, kill)).await;
             // SFTP 会话结束只关这一条通道，SSH 会话本身应继续存活：
             // 结束日志与后续 channel open/close 一起构成“传完还能继续操作”的证据。
             eprintln!("sftp subsystem end id={channel:?}");
@@ -380,6 +434,46 @@ impl SessionHandler {
 struct DirCursor {
     files: Vec<File>,
     next: usize,
+    /// 打开时的远端路径，用于区分可控故障目录（`dropzone`）。
+    path: String,
+}
+
+/// 包一层通道流：把 `kill` 置位后，下一次读取立即返回 EOF，
+/// 让 `russh_sftp::server::run` 退出并关闭该通道——这正是“列目录中途被服务端断开”。
+struct KilledStream<S> {
+    inner: S,
+    kill: Arc<AtomicBool>,
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for KilledStream<S> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        if self.kill.load(Ordering::SeqCst) {
+            return Poll::Ready(Ok(()));
+        }
+        Pin::new(&mut self.get_mut().inner).poll_read(cx, buf)
+    }
+}
+
+impl<S: AsyncWrite + Unpin> AsyncWrite for KilledStream<S> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.get_mut().inner).poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.get_mut().inner).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
+    }
 }
 
 /// 极简 SFTP 服务端：单文件读写 + 目录列表 + 元数据 + rename/remove。
@@ -388,15 +482,22 @@ struct SftpDisk {
     handles: HashMap<String, tokio::fs::File>,
     dirs: HashMap<String, DirCursor>,
     next_handle: u64,
+    mode: SftpMode,
+    /// 置位后通道会在下一次读取时 EOF，用于模拟中途断开。
+    kill: Arc<AtomicBool>,
+    readdir_batches: u64,
 }
 
 impl SftpDisk {
-    fn new(root: PathBuf) -> Self {
+    fn new(root: PathBuf, mode: SftpMode, kill: Arc<AtomicBool>) -> Self {
         Self {
             root,
             handles: HashMap::new(),
             dirs: HashMap::new(),
             next_handle: 0,
+            mode,
+            kill,
+            readdir_batches: 0,
         }
     }
 
@@ -466,9 +567,18 @@ impl SftpHandler for SftpDisk {
     ) -> impl Future<Output = Result<Handle, Self::Error>> + Send {
         let path = self.resolve(&filename);
         let denied = Self::denied(&filename);
+        let readonly = self.mode.readonly;
         async move {
             if denied {
                 return Err(StatusCode::PermissionDenied.with_message("deny marker"));
+            }
+            if readonly
+                && (pflags.contains(OpenFlags::WRITE)
+                    || pflags.contains(OpenFlags::APPEND)
+                    || pflags.contains(OpenFlags::CREATE)
+                    || pflags.contains(OpenFlags::TRUNCATE))
+            {
+                return Err(StatusCode::PermissionDenied.with_message("read-only fixture"));
             }
             let path = path?;
             let mut opts = tokio::fs::OpenOptions::new();
@@ -502,6 +612,7 @@ impl SftpHandler for SftpDisk {
     ) -> impl Future<Output = Result<Handle, Self::Error>> + Send {
         let resolved = self.resolve(&path);
         let denied = Self::denied(&path);
+        let cursor_path = path.clone();
         let result = (|| -> Result<Handle, StatusReply> {
             if denied {
                 return Err(StatusCode::PermissionDenied.with_message("deny marker"));
@@ -522,6 +633,7 @@ impl SftpHandler for SftpDisk {
                 DirCursor {
                     files,
                     next: 0,
+                    path: cursor_path,
                 },
             );
             Ok(Handle { id, handle })
@@ -538,9 +650,13 @@ impl SftpHandler for SftpDisk {
     ) -> impl Future<Output = Result<Status, Self::Error>> + Send {
         let resolved = self.resolve(&path);
         let denied = Self::denied(&path);
+        let readonly = self.mode.readonly;
         async move {
             if denied {
                 return Err(StatusCode::PermissionDenied.with_message("deny marker"));
+            }
+            if readonly {
+                return Err(StatusCode::PermissionDenied.with_message("read-only fixture"));
             }
             std::fs::create_dir(resolved?).map_err(io_err)?;
             Ok(ok_status(id))
@@ -552,13 +668,23 @@ impl SftpHandler for SftpDisk {
         id: u32,
         handle: String,
     ) -> impl Future<Output = Result<Name, Self::Error>> + Send {
-        const BATCH: usize = 100;
+        let batch = self.mode.batch.max(1);
+        let mut dropzone = false;
         let files = self.dirs.get_mut(&handle).map(|cursor| {
+            dropzone = cursor.path.contains("dropzone");
             let start = cursor.next;
-            let end = (start + BATCH).min(cursor.files.len());
+            let end = (start + batch).min(cursor.files.len());
             cursor.next = end;
             cursor.files[start..end].to_vec()
         });
+        self.readdir_batches += 1;
+        // `drop=N` 只作用于 dropzone 目录：返回第 N 批后让通道 EOF，模拟服务端中途断开，
+        // 其它目录/操作不受影响，矩阵里同一行的其它单元格仍可验证。
+        if let Some(limit) = self.mode.drop_after_readdirs {
+            if dropzone && self.readdir_batches >= limit {
+                self.kill.store(true, Ordering::SeqCst);
+            }
+        }
         async move {
             let Some(files) = files else {
                 return Err(StatusCode::Failure.with_message("bad dir handle"));
@@ -601,7 +727,11 @@ impl SftpHandler for SftpDisk {
         data: Vec<u8>,
     ) -> impl Future<Output = Result<Status, Self::Error>> + Send {
         let file = self.handles.get_mut(&handle);
+        let readonly = self.mode.readonly;
         async move {
+            if readonly {
+                return Err(StatusCode::PermissionDenied.with_message("read-only fixture"));
+            }
             let file = file.ok_or_else(|| StatusCode::Failure.with_message("bad handle"))?;
             file.seek(std::io::SeekFrom::Start(offset))
                 .await
@@ -676,9 +806,13 @@ impl SftpHandler for SftpDisk {
     ) -> impl Future<Output = Result<Status, Self::Error>> + Send {
         let resolved = self.resolve(&filename);
         let denied = Self::denied(&filename);
+        let readonly = self.mode.readonly;
         async move {
             if denied {
                 return Err(StatusCode::PermissionDenied.with_message("deny marker"));
+            }
+            if readonly {
+                return Err(StatusCode::PermissionDenied.with_message("read-only fixture"));
             }
             tokio::fs::remove_file(resolved?).await.map_err(io_err)?;
             Ok(ok_status(id))
@@ -694,9 +828,13 @@ impl SftpHandler for SftpDisk {
         let old = self.resolve(&oldpath);
         let new = self.resolve(&newpath);
         let denied = Self::denied(&oldpath) || Self::denied(&newpath);
+        let readonly = self.mode.readonly;
         async move {
             if denied {
                 return Err(StatusCode::PermissionDenied.with_message("deny marker"));
+            }
+            if readonly {
+                return Err(StatusCode::PermissionDenied.with_message("read-only fixture"));
             }
             tokio::fs::rename(old?, new?).await.map_err(io_err)?;
             Ok(ok_status(id))
@@ -730,6 +868,11 @@ async fn main() {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(2222);
+
+    let sftp_mode = std::env::var("FIXTURE_SFTP_MODE")
+        .map(|v| SftpMode::parse(&v))
+        .unwrap_or_default();
+    let sftp_mode = Arc::new(sftp_mode);
 
     let root = std::env::var("FIXTURE_SFTP_ROOT")
         .map(PathBuf::from)
@@ -770,9 +913,16 @@ async fn main() {
         stream.set_nodelay(true).ok();
         let config = config.clone();
         let root = root.clone();
+        let sftp_mode = *sftp_mode;
         tokio::spawn(async move {
             eprintln!("session open");
-            match russh::server::run_stream(config, stream, SessionHandler::new(root)).await {
+            match russh::server::run_stream(
+                config,
+                stream,
+                SessionHandler::new(root, sftp_mode),
+            )
+            .await
+            {
                 Ok(session) => {
                     let _ = session.await;
                     eprintln!("session closed");
