@@ -237,16 +237,9 @@ jobs:
           }
 
       - name: 校验三平台产物齐全
-        # 任一平台缺失（例如 macOS 构建失败被跳过）都直接失败，不允许用「其它平台继续跑」掩盖。
-        run: |
-          set -e
-          for pat in '*.exe' '*.msi' '*.dmg' '*.AppImage' '*.deb'; do
-            if ! find artifacts -name "$pat" -type f | grep -q .; then
-              echo "缺少产物：$pat"
-              exit 1
-            fi
-          done
-          echo "三平台产物齐全"
+        # 期望清单只有一处：scripts/release-artifacts.mjs（7 项，含 rpm）。
+        # 任一平台缺失都直接失败，不允许用「其它平台继续跑」掩盖。
+        run: node scripts/release-verify.mjs --dir artifacts --artifacts-only
 
       - name: 生成 latest.json（应用内更新清单）
         # 需要签名产物（*.sig）。未配置 TAURI_SIGNING_PRIVATE_KEY 时脚本自动跳过，
@@ -258,26 +251,21 @@ jobs:
       - name: 生成三平台合并产物清单
         run: node scripts/release-manifest.mjs --assets artifacts
 
-      - name: 汇总 SHA256SUMS
+      - name: 汇总 SHA256SUMS 并校验清单自洽
+        # 三步都不依赖 GitHub：先按期望清单重写 SHA256SUMS（7 行，签名与 latest.json 不计入），
+        # 再核对行数 / 每行哈希 / manifest 条数，任一不符即失败。
         run: |
-          cd artifacts
-          find . -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.app.tar.gz' -o -name '*.sig' -o -name 'latest.json' \) -print0 \
-            | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
-          cat SHA256SUMS.txt
+          node scripts/release-verify.mjs --dir artifacts --write-sums \
+            --manifest "docs/release/manifest-${APP_VERSION}.json"
+          cat artifacts/SHA256SUMS.txt
 
       - uses: softprops/action-gh-release@v2
+        # 上传不再逐类枚举：期望清单只有 scripts/release-artifacts.mjs 一处，加 bundle 不用回来改这里。
+        # 缺件由上面的 verify 直接拦（退出码 1），这里 fail_on_unmatched_files 再兜一层。
+        # artifacts/**/* 覆盖 7 类安装包 + .sig + SHA256SUMS.txt + 可选的 latest.json。
         with:
           files: |
-            artifacts/**/*.exe
-            artifacts/**/*.msi
-            artifacts/**/*.dmg
-            artifacts/**/*.AppImage
-            artifacts/**/*.deb
-            artifacts/**/*.rpm
-            artifacts/**/*.app.tar.gz
-            artifacts/**/*.sig
+            artifacts/**/*
             docs/release/manifest-${{ env.APP_VERSION }}.json
             docs/release/manifest-${{ env.APP_VERSION }}.md
-            artifacts/latest.json
-            artifacts/SHA256SUMS.txt
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true

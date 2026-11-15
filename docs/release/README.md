@@ -237,3 +237,135 @@ windows / macos / linux 三个 job 并行 → publish 汇总 `SHA256SUMS.txt` �
 断点结论：**从 1.0.4 起只在本地产物、未发 Release**；1.0.9 / 1.0.10 已按本流程补发并核对
 远端 digest。1.1.0 的 release 工作流因 `macos-14` runner 不可用被取消，只留下 Windows 产物；
 从 **1.1.1** 起三平台由 CI 同 tag 构建并一起发布。
+
+## 10. 三平台出包的出处与可复现性（2026-11-15 澄清）
+
+### 10.1 谁出的包
+
+**不是本地手动出包。** v1.1.1 的 7 个产物由 `.github/workflows/release.yml` 在 tag `v1.1.1` 上构建，
+三台 **GitHub 托管 runner**，`publish` job 汇总后挂到同一个 Release。
+
+| 平台 | runner | 命令 | 工具链 | 产物 |
+| --- | --- | --- | --- | --- |
+| Windows x64 | `windows-latest`（GitHub 托管） | `pnpm tauri build --bundles nsis,msi --config <临时 cfg>`，随后 `scripts/smoke-windows.ps1` | pnpm 9、Node 20、`dtolnay/rust-toolchain@stable`（stable 未钉版本） | `*-setup.exe`、`*.msi`（+ `.sig`） |
+| macOS universal | `macos-latest`（GitHub 托管） | `pnpm tauri build --target universal-apple-darwin --bundles app,dmg` | rust targets `aarch64-apple-darwin` + `x86_64-apple-darwin`（均为 stable） | `Shellora.app.tar.gz`、`Shellora_1.1.1_universal.dmg`（+ `.sig`） |
+| Linux x64 | `ubuntu-22.04`（GitHub 托管） | 先 `apt-get install libwebkit2gtk-4.1-dev … rpm`，再 `pnpm tauri build --bundles appimage,deb,rpm` | 同上；apt 包**未钉版本** | `.AppImage`、`.deb`、`.rpm`（+ `.sig`） |
+| 汇总发布 | `ubuntu-22.04` | 下载三份 artifact → 校验齐全 → `updater-manifest.mjs` → `release-manifest.mjs` → `find … sha256sum` → `softprops/action-gh-release` | — | `latest.json`、`SHA256SUMS.txt`、`manifest-1.1.1.*` |
+
+判定依据（不是推测）：
+
+1. `docs/release/SHA256SUMS-1.1.1.txt` 的路径是 `./windows-bundles/…`、`./macos-bundles/…`、
+   `./linux-bundles/…`、`./latest.json` —— 这种前缀只可能来自 publish job 的
+   `cd artifacts && find … | xargs sha256sum`；本地 `build-release.ps1` 生成的是
+   `src-tauri/target/…/bundle/…`，没有 `artifacts/` 与 `*-bundles` 层。
+2. `manifest-1.1.1.json` 里每个 `path` 以 `artifacts/` 开头，`generatedAt = 2026-11-15T01:14:08Z`
+   （= 09:14 +0800），与 HEAD `49c4718`（09:16:09）相隔两分钟，即「publish 产出清单 → 随即提交」。
+3. 7 个产物与 workflow 的 `--bundles` 参数一一对应；`macos-latest` 的注释还留着
+   `macos-14` 返回 `configuration not supported` 的排查记录。
+
+### 10.2 可复现性判定
+
+| 口径 | 结论 |
+| --- | --- |
+| 可重复出包（re-runnable） | **是**。重推同一 tag 或 `workflow_dispatch` 能再走一遍同一条流水线 |
+| 可复现构建（bit-for-bit） | **否**。runner 镜像、rust stable、Node/pnpm 次版本、apt 包全部浮动；dmg/AppImage/rpm/MSI 内嵌时间戳与构建路径 |
+| 产物可核对 | **部分**。有 SHA-256 与 manifest；但缺构建来源证明（无 attestation、manifest 不含 commit SHA 与 runner 版本） |
+
+差距清单（要把它变成「可复现可核验」还缺什么）：
+
+1. **钉死 runner 并记录**：`windows-latest` / `macos-latest` 是浮动标签，`ubuntu-22.04` 也将在
+   EOL 后消失。改成显式版本，并把 `sw_vers`、`rpm --version`、`makensis -VERSION`、`rustc -Vv`、
+   `node -v`、`pnpm -v` 写进 `manifest-*.json`。
+2. **钉死工具链**：新增 `rust-toolchain.toml`（精确版本 + targets）；`package.json` 加
+   `packageManager` 并由 corepack 接管；Node 用 `.nvmrc` 固定到次版本。
+3. **确定性归档**：`SOURCE_DATE_EPOCH`、`tar --sort=name --mtime=@$SOURCE_DATE_EPOCH`、
+   Rust `--remap-path-prefix` 去掉构建路径；用 `diffoscope` 对两次构建做二进制对比，
+   逐个消掉时间戳/路径差异。这是最大的一块工作量，且 NSIS/MSI/dmg 由上游工具生成，
+   能否完全确定化要先做可行性验证。
+4. **签名与公证**：Windows Authenticode（EV 证书或 Azure Trusted Signing）+ macOS Developer ID
+   + `notarytool`。当前两者**都未签**（README §5）；证书有效期本身会让「永远可复现」失效，
+   所以只能承诺「同证书有效期内可复现」。
+5. **齐全性校验有洞（现存缺陷）→ 已修**：publish 的循环原来只查 `*.exe`、`*.msi`、`*.dmg`、
+   `*.AppImage`、`*.deb`，**漏了 `*.rpm`**；`action-gh-release` 也用了 `fail_on_unmatched_files: false`。
+   现在期望清单只有一处（`scripts/release-artifacts.mjs` 的 7 项数组），校验交给
+   `scripts/release-verify.mjs`；上传改用 `artifacts/**/*` 通配（不再逐类枚举，加 bundle 只改
+   `release-artifacts.mjs`），`fail_on_unmatched_files` 改为 `true`——原先因 `latest.json` 可能不存在
+   而单独拆出的第二个 gh-release 步骤连同 `hashFiles` 条件一并删掉：通配里没有 `latest.json` 时
+   其它文件仍能匹配，不会误触发失败。
+6. **来源证明**：manifest 已带 `build.commit` / `build.runner.{os,image,imageVersion,arch}`
+   （`scripts/release-manifest.mjs`，本地跑时这些字段为 `null`）；还缺 `actions/attest-build-provenance`
+   与 `gh attestation verify`，以及把 `GITHUB_RUN_ID` 写进 `latest.json`。
+7. **改动范围**：全部集中在 `release.yml` + `scripts/release-manifest.mjs` + `scripts/updater-manifest.mjs`
+   + 一个 `rust-toolchain.toml`，不碰业务代码；难点只在第 3、4 项。
+
+### 10.3 本地验证这段检查逻辑（不需要 GitHub、不依赖网络）
+
+`scripts/release-verify.mjs` 是 CI 里唯一跑的那份检查，本地可以原样跑。做法是先造一棵假的
+`artifacts/` 树，确认「齐全时退出 0、缺件时退出 1」：
+
+```powershell
+# 1) 造 7 个假产物 + 1 个 .sig（内容随便，只要路径名对；版本号取仓库当前版本）
+$T = Join-Path $env:TEMP "reltest"
+Remove-Item $T -Recurse -Force -ErrorAction SilentlyContinue
+$V = node -p "require('./src-tauri/tauri.conf.json').version"
+@(
+  "windows-bundles\src-tauri\target\release\bundle\nsis\Shellora_${V}_x64-setup.exe",
+  "windows-bundles\src-tauri\target\release\bundle\nsis\Shellora_${V}_x64-setup.exe.sig",
+  "windows-bundles\src-tauri\target\release\bundle\msi\Shellora_${V}_x64_en-US.msi",
+  "macos-bundles\bundle\dmg\Shellora_${V}_universal.dmg",
+  "macos-bundles\bundle\macos\Shellora.app.tar.gz",
+  "linux-bundles\bundle\appimage\Shellora_${V}_amd64.AppImage",
+  "linux-bundles\bundle\deb\Shellora_${V}_amd64.deb",
+  "linux-bundles\bundle\rpm\Shellora-${V}-1.x86_64.rpm"
+) | ForEach-Object {
+  $p = Join-Path $T $_
+  New-Item -ItemType Directory -Force -Path (Split-Path $p) | Out-Null
+  Set-Content -Path $p -Value "x" -NoNewline
+}
+node scripts/release-manifest.mjs --assets $T --out (Join-Path $T "meta")
+$M = (Get-ChildItem (Join-Path $T "meta") -Filter "manifest-*.json").FullName
+$S = Join-Path $T "SHA256SUMS.txt"
+
+# 2) 齐全 → exit=0（7 项、SHA256SUMS 7 行、manifest 7 条）
+node scripts/release-verify.mjs --dir $T --write-sums --manifest $M
+echo "exit=$LASTEXITCODE"
+
+# 3) 删掉 rpm → exit=1（这条就是本轮补的洞）
+Remove-Item (Join-Path $T "linux-bundles\bundle\rpm\*.rpm") -Force
+node scripts/release-verify.mjs --dir $T --write-sums --manifest $M
+echo "exit=$LASTEXITCODE"
+
+# 4) SHA256SUMS 多一行 → exit=1（行数自洽校验）
+#    先把 rpm 补回来并重写清单，再往清单末尾追加一行不存在的文件
+Set-Content -Path (Join-Path $T "linux-bundles\bundle\rpm\Shellora-${V}-1.x86_64.rpm") -Value "x" -NoNewline
+node scripts/release-verify.mjs --dir $T --write-sums --manifest $M | Out-Null
+Add-Content $S ("0" * 64 + "  ./linux-bundles/bundle/deb/ghost.deb")
+node scripts/release-verify.mjs --dir $T --manifest $M
+echo "exit=$LASTEXITCODE"
+
+# 5) SHA256SUMS 少一行 → exit=1（磁盘上文件仍在，只是清单漏了）
+(Get-Content $S) | Where-Object { $_ -notmatch "(\.rpm|ghost\.deb)" } | Set-Content $S
+node scripts/release-verify.mjs --dir $T --manifest $M
+echo "exit=$LASTEXITCODE"
+```
+
+四条判据各自能看到什么（2026-11-15 实测）：
+
+| 场景 | 退出码 | 实际输出 |
+| --- | ---: | --- |
+| 7 项齐全 | `0` | `[verify] OK：7 项产物齐全，SHA256SUMS 与 manifest 条数一致`，随后逐项列出 `nsis/msi/dmg/app-tar/appimage/deb/rpm` |
+| 删掉 rpm | `1` | 3 项：`缺少产物：Linux 安装包（.rpm）（期望 1 个，实际 0 个）`、`SHA256SUMS.txt 有多余行：./…/Shellora-<ver>-1.x86_64.rpm`、`manifest 多出产物：Shellora-<ver>-1.x86_64.rpm` |
+| 往 `SHA256SUMS.txt` 追加一行 | `1` | `SHA256SUMS.txt 行数 8 != 期待 7`、`SHA256SUMS.txt 有多余行：./linux-bundles/bundle/deb/ghost.deb` |
+| 从 `SHA256SUMS.txt` 删掉 rpm 那一行（文件仍在） | `1` | `SHA256SUMS.txt 行数 6 != 期待 7`、`SHA256SUMS.txt 缺少 Linux 安装包（.rpm）：./…rpm` |
+
+说明两点，免得误读输出：
+
+- 删掉 rpm 时之所以报「多余行」而不是「行数 6≠7」：`--write-sums` 只在**齐全**时才重写清单，
+  所以旧的 7 行清单原样留着，缺的那一项表现为「清单里有、磁盘上没有」。要单独看行数校验，
+  就是上表后两行（清单多一行 / 少一行）。三条判据都在 `release-verify.mjs` 里，触发条件不同而已。
+- manifest 的条数校验用的是 `--manifest` 指向的那个文件；本地跑 `--assets` 生成时
+  `build.commit` / `build.runner.*` 为 `null`（没有 `GITHUB_SHA` / `ImageOS`），属预期。
+
+CI 里就是同一个脚本，分两次调用：先 `--artifacts-only` 查齐全（此时 SHA256SUMS 与合并 manifest
+还没生成），生成清单后再 `--write-sums --manifest` 查自洽。
+

@@ -18,7 +18,22 @@ const scanDir = resolve(
       ? process.argv[argDir + 1]
       : "src-tauri/target/release/bundle",
 );
+const outArg = process.argv.indexOf("--out");
+const outDir = resolve(root, outArg > -1 ? process.argv[outArg + 1] : "docs/release");
 const version = JSON.parse(readFileSync(resolve(root, "src-tauri/tauri.conf.json"), "utf8")).version;
+
+// 可追溯性：提交号 + runner 版本。GitHub 托管 runner 会注入 ImageOS / ImageVersion，
+// 本地跑时这些为空，输出 null，便于区分「CI 出的包」与「本地手搓的包」。
+const build = {
+  commit: process.env.GITHUB_SHA || null,
+  ref: process.env.GITHUB_REF_NAME || null,
+  runner: {
+    os: process.env.RUNNER_OS || null,
+    image: process.env.ImageOS || null,
+    imageVersion: process.env.ImageVersion || null,
+    arch: process.env.RUNNER_ARCH || null,
+  },
+};
 
 function walk(dir) {
   const out = [];
@@ -74,7 +89,6 @@ const legacy = artifacts.filter((a) => a.name.startsWith("SSHTerm"));
 const current = artifacts.filter((a) => !a.name.startsWith("SSHTerm"));
 for (const a of legacy) a.legacy = true;
 
-const outDir = resolve(root, "docs/release");
 mkdirSync(outDir, { recursive: true });
 const jsonPath = join(outDir, `manifest-${version}.json`);
 writeFileSync(
@@ -85,6 +99,7 @@ writeFileSync(
       license: "MIT",
       thirdPartyNotices: "THIRD_PARTY_NOTICES.md",
       generatedAt: new Date().toISOString(),
+      build,
       artifacts,
     },
     null,
@@ -100,6 +115,8 @@ const md = `# Release ${version} 产物清单
 
 - 版本来源：\`src-tauri/Cargo.toml\` → \`package.json\` / \`tauri.conf.json\`（\`scripts/check-version.mjs\` 校验）
 - 生成时间：${new Date().toISOString()}
+- 提交：\`${build.commit ?? "未提供 GITHUB_SHA（本地构建）"}\`${build.ref ? `（${build.ref}）` : ""}
+- 构建机：${build.runner.os ?? "本地"} / ${build.runner.image ?? "非托管镜像"}${build.runner.imageVersion ? ` ${build.runner.imageVersion}` : ""} / ${build.runner.arch ?? "未知架构"}
 
 | 文件 | 字节 | SHA-256 |
 |---|---:|---|
