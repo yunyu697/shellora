@@ -4,7 +4,8 @@
 //   node scripts/release-verify.mjs --dir artifacts                          # 只校验
 //   node scripts/release-verify.mjs --dir artifacts --write-sums             # 先重写 SHA256SUMS.txt 再校验
 //   node scripts/release-verify.mjs --dir artifacts --manifest docs/release/manifest-1.1.1.json
-//   node scripts/release-verify.mjs --dir artifacts --exact --manifest docs/release/manifest-1.1.2.json
+//   node scripts/release-verify.mjs --dir artifacts --exact --manifest docs/release/manifest-1.1.2.json \
+//     --emit-list upload-list.json          # 顺便把待上传清单写成 JSON（dist/ 平铺的唯一来源）
 //   node scripts/release-verify.mjs --dir artifacts --expect-fail            # 自检：期望失败时退出码应为 1
 //
 // 校验五件事，任一不满足即退出码 1：
@@ -17,7 +18,7 @@
 //      不靠 release.yml 的通配有没有写窄。
 import { createHash } from "node:crypto";
 import { createReadStream, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import { EXPECTED_ARTIFACTS, EXPECTED_COUNT, SIGNABLE_IDS, EXPECTED_SIG_COUNT } from "./release-artifacts.mjs";
 
 const argv = process.argv.slice(2);
@@ -30,6 +31,9 @@ const manifestPath = argOf("--manifest", null);
 const writeSums = argv.includes("--write-sums");
 const artifactsOnly = argv.includes("--artifacts-only");
 const exact = argv.includes("--exact");
+// --emit-list <file>：把 --exact 核过的待上传清单写成 JSON，供 release-stage-upload.mjs 平铺到 dist/。
+// YAML 里不再手写任何上传路径，避免 upload-artifact 剥公共祖先后又对不上。
+const emitList = argOf("--emit-list", null);
 
 const sha256 = (file) =>
   new Promise((ok, fail) => {
@@ -200,8 +204,18 @@ if (exact) {
   console.log(`[verify] 待上传资产共 ${uploadList.length} 个（白名单逐条核过，多一个少一个都会失败）：`);
   for (const p of uploadList) {
     // SHA256SUMS.txt 是本轮 --write-sums 刚写的，不在启动时的 files 快照里，回落到磁盘查。
-    const full = files.find((f) => f.rel === p)?.full ?? resolve(p);
+    const full = files.find((f) => f.rel === p)?.full ?? (isAbsolute(p) ? p : join(dir, p));
     const size = statSync(full, { throwIfNoEntry: false })?.size;
     console.log(`  ${String(size ?? "-").padStart(10)}  ${p}`);
+  }
+  if (emitList) {
+    // 清单里 ./x 是相对 --dir 的，manifest 是绝对路径：统一写成绝对路径给 dist/ 平铺用。
+    // 每条带上字节数，平铺步骤据此核对「磁盘上的文件 == 清单记的字节数」，而不只是副本和源一样大。
+    const entries = uploadList.map((p) => {
+      const full = isAbsolute(p) ? p : join(dir, p);
+      return { path: full, size: statSync(full).size };
+    });
+    writeFileSync(emitList, JSON.stringify({ count: entries.length, files: entries }, null, 2) + "\n");
+    console.log(`[verify] 待上传清单已写入 ${emitList}（${entries.length} 条，供 dist/ 平铺使用）`);
   }
 }

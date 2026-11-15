@@ -252,32 +252,20 @@ jobs:
         # SHA256SUMS.txt + latest.json），多一个少一个都失败，并把待上传清单逐条打进日志。
         run: |
           node scripts/release-verify.mjs --dir artifacts --write-sums --exact \
-            --manifest "docs/release/manifest-${APP_VERSION}.json"
+            --manifest "docs/release/manifest-${APP_VERSION}.json" \
+            --emit-list upload-list.json
           cat artifacts/SHA256SUMS.txt
 
+      - name: 平铺暂存上传目录（dist/）
+        # 上传清单只有一处来源：上一步 --exact 写出的 upload-list.json。
+        # 这里按 basename 平铺到 dist/，断言恰好 17 个文件、无子目录、basename 不重复、字节数一致。
+        # 不再在 YAML 里手写 artifacts/... 路径（那条路已经错了两次：通配太宽、剥公共祖先后对不上）。
+        run: node scripts/release-stage-upload.mjs --list upload-list.json --out dist
+
       - uses: softprops/action-gh-release@v2
-        # 上传只认这一份显式名单，不再用 artifacts/**/* 通配：通配会把 .app 内部文件
-        # （icon.icns / Info.plist）、裸二进制 shellora、各平台的历史 manifest 一起拖进来，
-        # 与下面的 manifest 同名抢占时还会报 already_exists（1.1.2 首次发布即栽在这里）。
-        # 名单与 scripts/release-verify.mjs --exact 的白名单一一对应；dmg 不产 .sig，所以是 6 个签名。
-        # 未配置 TAURI_SIGNING_PRIVATE_KEY 时不产 latest.json，该行会 unmatched —— 发版前先把签名密钥配好。
+        # 上传只认 dist/*：里面是上一步从 upload-list.json 平铺出来的 17 个文件，路径不由 YAML 决定。
+        # fail_on_unmatched_files 仍为 true —— dist/ 为空（暂存步骤被跳过或断言失效）必须失败，
+        # 不能发出一个没有资产的 Release。
         with:
-          files: |
-            artifacts/windows-bundles/src-tauri/target/release/bundle/nsis/*.exe
-            artifacts/windows-bundles/src-tauri/target/release/bundle/nsis/*.exe.sig
-            artifacts/windows-bundles/src-tauri/target/release/bundle/msi/*.msi
-            artifacts/windows-bundles/src-tauri/target/release/bundle/msi/*.msi.sig
-            artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
-            artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
-            artifacts/linux-bundles/src-tauri/target/release/bundle/appimage/*.AppImage
-            artifacts/linux-bundles/src-tauri/target/release/bundle/appimage/*.AppImage.sig
-            artifacts/linux-bundles/src-tauri/target/release/bundle/deb/*.deb
-            artifacts/linux-bundles/src-tauri/target/release/bundle/deb/*.deb.sig
-            artifacts/linux-bundles/src-tauri/target/release/bundle/rpm/*.rpm
-            artifacts/linux-bundles/src-tauri/target/release/bundle/rpm/*.rpm.sig
-            artifacts/SHA256SUMS.txt
-            artifacts/latest.json
-            docs/release/manifest-${{ env.APP_VERSION }}.json
-            docs/release/manifest-${{ env.APP_VERSION }}.md
+          files: dist/*
           fail_on_unmatched_files: true

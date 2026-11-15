@@ -18,3 +18,6 @@ export const EXPECTED_COUNT = EXPECTED_ARTIFACTS.length;
 // 白名单校验按这份名单要求「每个可签名产物都有同名 .sig」，而不是笼统要求 7 个。
 export const SIGNABLE_IDS = ["nsis", "msi", "app-tar", "appimage", "deb", "rpm"];
 export const EXPECTED_SIG_COUNT = SIGNABLE_IDS.length;
+
+// publish 生成、随 Release 一起上传的清单份数（manifest-<ver>.json 与 .md）。
+export const EXPECTED_MANIFEST_FILES = 2;

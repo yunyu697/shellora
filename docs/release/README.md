@@ -293,10 +293,17 @@ windows / macos / linux 三个 job 并行 → publish 汇总 `SHA256SUMS.txt` �
    （`icon.icns` / `Info.plist` / `bundle_dmg.sh`）、裸二进制 `shellora`、以及三个平台各自带过来的
    历史 `docs/release/manifest-*.json` 全拖进资产，与显式的 manifest 同名抢占 → `already_exists`，
    Release 停在 draft（39 个资产，其中 20 个是历史清单）。
-   现在两边一起收窄：`files:` 逐条枚举（7 类安装包 + 6 个 `.sig` + `SHA256SUMS.txt` + `latest.json`
-   + 2 份 manifest；dmg 不产 `.sig`），三个构建作业不再上传 `docs/release/manifest-*`；
+   现在两边一起收窄：`files:` 只写 `dist/*`（清单由脚本平铺，不在 YAML 里手写路径；
+   内容是 7 类安装包 + 6 个 `.sig` + `SHA256SUMS.txt` + `latest.json` + 2 份 manifest，dmg 不产 `.sig`），
+   三个构建作业不再上传 `docs/release/manifest-*`；
    `release-verify.mjs --exact` 在 publish 前做白名单校验——多一个少一个都失败，并把待上传清单
    逐条打进日志。`fail_on_unmatched_files: true` 保留。
+   **待上传清单只有一个来源**：`--exact --emit-list upload-list.json` →
+   `release-stage-upload.mjs` 按 basename 平铺到 `dist/` → `files: dist/*`。
+   不要再回到在 YAML 里手写 `artifacts/...` 路径：那条路错了两轮（通配太宽；逐条枚举时又踩了
+   `upload-artifact` 剥公共祖先——真实布局是 `artifacts/windows-bundles/nsis/*`，
+   不是 `.../src-tauri/target/release/bundle/nsis/*`）。平铺这一步同时断言 `dist/` 恰好 17 个文件、
+   无子目录、basename 不重复、字节数与清单一致。
 6. **来源证明**：manifest 已带 `build.commit` / `build.runner.{os,image,imageVersion,arch}`
    （`scripts/release-manifest.mjs`，本地跑时这些字段为 `null`）；还缺 `actions/attest-build-provenance`
    与 `gh attestation verify`，以及把 `GITHUB_RUN_ID` 写进 `latest.json`。
@@ -359,6 +366,11 @@ $bad = Join-Path $T "macos-bundles\bundle\macos\Shellora.app\Contents\Resources\
 New-Item -ItemType Directory -Force -Path (Split-Path $bad) | Out-Null
 Set-Content -Path $bad -Value "x" -NoNewline
 node scripts/release-verify.mjs --dir $T --exact --manifest $M
+echo "exit=$LASTEXITCODE"
+
+# 7) 平铺 dist/：清单 17 条 → dist 里 17 个文件、无子目录、字节数一致 → exit=0
+node scripts/release-verify.mjs --dir $T --write-sums --exact --manifest $M --emit-list (Join-Path $T "upload.json") | Out-Null
+node scripts/release-stage-upload.mjs --list (Join-Path $T "upload.json") --out (Join-Path $T "dist")
 echo "exit=$LASTEXITCODE"
 ```
 
