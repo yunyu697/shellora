@@ -326,3 +326,29 @@ v2 的判断标准只有一条：**实际长时间使用是否顺手**。由此�
 注：Windows 11 上悬停托盘图标时系统侧 tooltip 气泡未能稳定截取（同一图标在浅/深任务栏下均复现），文案本身由 `set_tooltip` 设置在图标上；这一项仅做了代码路径验证，未取得视觉证据。
 
 验证截图在 `design/v2/shots-tray/`：`tray-light-taskbar.png`、`tray-dark-taskbar.png`、`tray-menu.png`、`tray-menu-sessions.png`、`settings-close-to-tray-off.png`、`settings-close-to-tray-on.png`、`tray-still-running-hint.png`。
+
+## 14. 文档与提交约定（2026-11-15）
+
+### 14.1 规范必须在版本控制里
+
+`docs/design/ui-spec.md` 长期处于未跟踪状态，直到 `cb689f7` 才入库。代价是具体的：规范里写「证据见 `shots/…`」，而那条路径在仓库里根本打不开——对只 clone 仓库的人，结论和证据都不存在，只剩本地磁盘上一份草稿。约定：
+
+- 规范（`ui-spec.md`、本文件、`docs/release/README.md`）必须与它引用的检查脚本、证据同仓；引用的路径要么指向仓库内的文件，要么明确标注「未入库」并写原因。
+- 顺序是「规范先入库，证据随引用落盘」；反过来就会出现「图有、引用无」或「引用有、图无」。
+
+### 14.2 提交按性质拆开
+
+同一轮工作通常同时产出四类改动，不要塞进一个 commit：
+
+| 类别 | 例子 | 提交粒度 |
+|---|---|---|
+| 代码修复 | `frame.rs`、`release.yml`、`scripts/release-verify.mjs` | 一类根因一个 commit |
+| 规范与文档 | `ui-spec.md`、`DESIGN.md`、`docs/release/README.md` | 与对应代码修复同 commit，交代「改完」口径 |
+| 视觉证据 | `docs/design/shots/**` | 单独 commit，只放图与证据文档 |
+| 顺手改动 | 无关文案、尺寸段同步、配置微调 | 单独 commit，不混进上面三类 |
+
+反例：`cb689f7` 把 280 个文件（260 张历史矩阵截图 + 本轮 12 倍角部图 + 规范）压进同一个 commit，回溯时无法只取其中一类。此后新提交按上表拆，历史不重写。
+
+### 14.3 证据图入库的取舍
+
+入库判据是「被规范引用 + 不能按需重跑」：窗口 DWM 属性读回、真机 12 倍角部、A/B 对照这类一次性的真机取证必须入库；能由 `scripts/visual-matrix.mjs` 一条命令复现的批量矩阵截图，仓库最多留关键档位，其余外迁（Release 附件或证据分支），仓库内保留生成命令与结论数值即可。
