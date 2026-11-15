@@ -6,6 +6,7 @@ pub mod caption;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod frame;
 pub mod i18n;
 pub mod ipc;
 pub mod knownhost;
@@ -51,6 +52,10 @@ pub fn run() {
             tray::init(app.handle())?;
             #[cfg(windows)]
             caption::attach(app.handle());
+            // 窗口圆角交给系统：显式声明 DWM 圆角，不再自绘窗口外框
+            if let Some(window) = app.get_webview_window("main") {
+                frame::init(&window);
+            }
             tracing::info!(target: "app", "shellora starting");
             Ok(())
         })
@@ -133,6 +138,7 @@ pub fn run() {
             ipc::commands::data_clear,
             ipc::commands::window_caption_regions,
             ipc::commands::window_caption_probe,
+            ipc::commands::window_frame_theme,
             ipc::commands::ui_action,
             ipc::commands::tray_settings_get,
             ipc::commands::tray_settings_set,

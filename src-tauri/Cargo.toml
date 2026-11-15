@@ -52,8 +52,8 @@ uuid = { version = "1.20.0", features = ["v7", "serde"] }
 zeroize = "1.8.2"
 
 [target.'cfg(windows)'.dependencies]
-# 自绘标题栏的原生命中测试（WM_NCHITTEST → HTCAPTION / HTMAXBUTTON）
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
+# 自绘标题栏的原生命中测试（WM_NCHITTEST → HTCAPTION / HTMAXBUTTON）+ DWM 窗口圆角/明暗
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 hmac = "0.12"

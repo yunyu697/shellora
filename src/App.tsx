@@ -21,6 +21,7 @@ import {
   knownHostList,
   probeSecret,
   setCaptionRegions,
+  setWindowFrameTheme,
   traySync,
 } from "./lib/ipc/commands";
 import type {
@@ -131,7 +132,18 @@ function authLabel(input: ConnectionInput): string {
   return tr("密码");
 }
 
+/** 浏览器预览（vite dev server）没有 Tauri 注入，窗口 API 一律跳过 */
+const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 applyUiTheme(loadUiTheme(window.localStorage));
+
+/** 窗口外框交给系统：只下发明暗与最外 1px 描边色（取 --border），圆角由 DWM/AppKit 自己画。 */
+function syncWindowFrame(theme: UiTheme): void {
+  if (!IS_TAURI) return;
+  const border = getComputedStyle(document.documentElement).getPropertyValue("--border").trim();
+  void setWindowFrameTheme(theme === "dark", border || undefined).catch(() => {});
+}
+// 必须在首帧前同步一次，否则深色界面会先闪一圈浅色描边
+syncWindowFrame(loadUiTheme(window.localStorage));
 
 /** 仅 `?preview=1` 视觉回归时由夹具注入；正常运行下为空。 */
 const previewTab = (window as unknown as { __SHELLORA_PREVIEW_TAB__?: TabState })
@@ -142,8 +154,6 @@ const previewCwd = (window as unknown as { __SHELLORA_PREVIEW_CWD__?: string })
   .__SHELLORA_PREVIEW_CWD__;
 
 const IS_MAC = typeof navigator !== "undefined" && /Mac OS X/i.test(navigator.userAgent);
-/** 浏览器预览（vite dev server）没有 Tauri 注入，窗口 API 一律跳过 */
-const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 type ResizeDirection =
   | "East"
@@ -551,6 +561,8 @@ export default function App() {
   useEffect(() => {
     applyUiTheme(theme, document.documentElement);
     storeUiTheme(theme, window.localStorage);
+    // 窗口圆角与最外描边交给系统：只同步明暗与 --border，不在 CSS 里自绘窗口外框
+    syncWindowFrame(theme);
   }, [theme]);
 
   // 托盘菜单与 tooltip：标签 / 活动标签变化时同步给 Rust。

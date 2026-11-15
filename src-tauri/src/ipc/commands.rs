@@ -445,6 +445,13 @@ pub fn window_caption_probe(window: tauri::WebviewWindow, x: f64, y: f64, scale:
     }
 }
 
+/// 窗口外框交给系统：只同步明暗，圆角由 DWM / AppKit 自己画。
+/// 深色界面若不告知 DWM，DWM 会按浅色描那圈 1px 边——圆角处白边的根因。
+#[tauri::command]
+pub fn window_frame_theme(window: tauri::WebviewWindow, dark: bool, border: Option<String>) {
+    crate::frame::set_theme(&window, dark, border.as_deref());
+}
+
 // ---------------------------------------------------------------------------
 // 退出诊断
 // ---------------------------------------------------------------------------

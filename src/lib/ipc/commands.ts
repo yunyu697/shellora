@@ -259,6 +259,11 @@ export function setCaptionRegions(
   return invoke("window_caption_regions", { caption, maxbutton, scale });
 }
 
+/** 窗口外框交给系统：同步明暗 + 最外 1px 描边色（取 --border）；圆角由 DWM / AppKit 自己画。 */
+export function setWindowFrameTheme(dark: boolean, border?: string): Promise<void> {
+  return invoke("window_frame_theme", { dark, border });
+}
+
 /** 验证用：真实发送 WM_NCHITTEST 并返回命中码（HTCAPTION / HTMAXBUTTON / HTCLIENT）。 */
 export function probeCaptionHit(x: number, y: number, scale: number): Promise<string> {
   return invoke<string>("window_caption_probe", { x, y, scale });
