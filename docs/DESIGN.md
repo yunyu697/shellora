@@ -73,6 +73,7 @@ v2 的判断标准只有一条：**实际长时间使用是否顺手**。由此�
 ### 2.2 自绘标题栏
 
 - **无边框**：Windows / Linux 用 `decorations: false`（`tauri.windows.conf.json` / `tauri.linux.conf.json`），窗口背景与 `--bg` 令牌一致，不会再出现系统栏那条异色。
+- **窗口圆角交给系统（1.1.2，Windows 已复测）**：Web 层不再自绘窗口外框。Windows 11 在 `src-tauri/src/frame.rs` 里显式声明 `DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND`，并在主题切换时同步 `DWMWA_USE_IMMERSIVE_DARK_MODE`——深色界面若不告知 DWM，DWM 会按浅色画那圈 1px 描边，就是圆角白边的根因（取证与像素对照见 `docs/design/ui-spec.md` §5.4.1）。已提交 `358abf8`，并在该提交之后重新构建做了单窗口复测：`corner=2`，窗口最外实色像素深色 `#1E2A36` / 浅色 `#E2E7EE`（与当轮 `--border` 一致），8 张 12 倍角部图与逐像素剖面见 `docs/design/shots/wcorner-20261115T1236-evidence.md`。macOS 仍为**未验证**（本机无 macOS、现有 dmg 不含本轮改动、runner 无人值守）；macOS 由 AppKit 画，Linux X11 保持直角、Wayland 交给合成器，均不自绘。窗口**内部**的卡片/面板/输入框照常自绘圆角（4 档，见 ui-spec §5.1），两件事不混。
 - **macOS**：保留原生红绿灯，`decorations: true + titleBarStyle: "Overlay" + hiddenTitle: true`（`tauri.macos.conf.json`），顶栏左侧留 78px 给按钮，自绘窗口控制隐藏。
 - **窗口行为**：Windows 上空白区拖动、双击最大化、最大化按钮点击都交给系统（见下「原生命中测试」）；macOS/Linux 仍用 `startDragging()` 拖动、`mousedown.detail === 2` 双击最大化；`ResizeHandles` 提供 8 个方向的 4px（四角 12×12）热区调用 `startResizeDragging()`；最小化/最大化-还原/关闭为 40×35 按钮（命中 40×36，悬停 `--surface-3`、按下 `--surface-2`、关闭悬停 `#e81123`），贴右边缘；最大化后根节点去掉边框，按钮区不越界。
 
@@ -255,9 +256,10 @@ v2 的判断标准只有一条：**实际长时间使用是否顺手**。由此�
 
 ## 10. 最小可用尺寸
 
-- 窗口下限 `minWidth: 900` / `minHeight: 600`（`src-tauri/tauri.conf.json`）。
-- 900 宽时抽屉宽度被夹到 `max(min, min(720, 504, 340))`，此时 < 420px 触发紧凑操作行，5 个按钮只留图标、全部可点，无裁切。
-- 600px 高时终端可用高度约 492px（92px chrome + 16px 内边距），抽屉内列表与队列各自滚动，不出现控件消失。
+- 窗口下限 `minWidth: 640` / `minHeight: 480`（`src-tauri/tauri.conf.json` 与平台覆盖配置同步；更窄没有布局模型）。
+- 640 宽时抽屉按 46% 夹宽，`drawer--opsicon`（< 560px）让 7 个带字按钮只留图标，全部可点，无裁切；表格列在 < 420px 时进入 `drawer--compact`。
+- 640 宽下顶栏会话标签条只剩约 206px：无会话时显示短句（`.sb-empty__short`，≤1000px 生效），状态栏按 ≤1000px 收起 `cell--low`、≤780px 收起 `cell--mid`，只剩 4 个槽位。
+- 480px 高时终端可用高度约 372px（92px chrome + 16px 内边距），抽屉内列表与队列各自滚动，不出现控件消失。
 
 ## 11. 快捷键
 
