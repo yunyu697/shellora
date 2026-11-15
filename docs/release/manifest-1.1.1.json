@@ -1,0 +1,50 @@
+{
+  "version": "1.1.1",
+  "license": "MIT",
+  "thirdPartyNotices": "THIRD_PARTY_NOTICES.md",
+  "generatedAt": "2026-11-15T01:14:08.004Z",
+  "artifacts": [
+    {
+      "path": "artifacts/linux-bundles/src-tauri/target/release/bundle/appimage/Shellora_1.1.1_amd64.AppImage",
+      "name": "Shellora_1.1.1_amd64.AppImage",
+      "bytes": 88230392,
+      "sha256": "6e456b54e9bb1038356d055cfb62379e2bb8f91bdceaf65544964032e96d0736"
+    },
+    {
+      "path": "artifacts/linux-bundles/src-tauri/target/release/bundle/deb/Shellora_1.1.1_amd64.deb",
+      "name": "Shellora_1.1.1_amd64.deb",
+      "bytes": 10404052,
+      "sha256": "edd9a6c07ae6513c0378844455529de3cb902c4049b2fede6aed89389ceb4e41"
+    },
+    {
+      "path": "artifacts/linux-bundles/src-tauri/target/release/bundle/rpm/Shellora-1.1.1-1.x86_64.rpm",
+      "name": "Shellora-1.1.1-1.x86_64.rpm",
+      "bytes": 10411116,
+      "sha256": "1e56e035be30ae4b188f4d9a68b77386c59ed1dfc94794eafaa82c6018d95301"
+    },
+    {
+      "path": "artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/dmg/Shellora_1.1.1_universal.dmg",
+      "name": "Shellora_1.1.1_universal.dmg",
+      "bytes": 17288410,
+      "sha256": "493e98050f9d4cd4aab1b28a474ae9cd1214c72a89c8a8b5e75fc002baed39a6"
+    },
+    {
+      "path": "artifacts/macos-bundles/src-tauri/target/universal-apple-darwin/release/bundle/macos/Shellora.app.tar.gz",
+      "name": "Shellora.app.tar.gz",
+      "bytes": 17698748,
+      "sha256": "9000c128a21f28373fe98d7826ba1c010597911bb2e7da95c2b51c082280df60"
+    },
+    {
+      "path": "artifacts/windows-bundles/src-tauri/target/release/bundle/msi/Shellora_1.1.1_x64_en-US.msi",
+      "name": "Shellora_1.1.1_x64_en-US.msi",
+      "bytes": 8556544,
+      "sha256": "e6d219f74b1a164e344c99036026d24172ad371cf90042d57ead996be9e4992a"
+    },
+    {
+      "path": "artifacts/windows-bundles/src-tauri/target/release/bundle/nsis/Shellora_1.1.1_x64-setup.exe",
+      "name": "Shellora_1.1.1_x64-setup.exe",
+      "bytes": 6173147,
+      "sha256": "7748b9b14cce4bc975944369b9efa10be8e0f54aadce9775656b3658a1b56b5c"
+    }
+  ]
+}

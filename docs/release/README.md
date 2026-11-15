@@ -1,24 +1,36 @@
 # 发布说明（M6）
 
-版本：v1.0.0 · 平台：Windows x64（本机构建）、macOS universal / Linux x64（CI 脚本就绪，**未构建**）
+版本：v1.1.1 · Windows x64（CI 构建 + 本机安装冒烟）、macOS universal / Linux x64（CI 构建，本地无对应系统，未实机运行）
 
-## 0. 当前发布：v1.0.2（GitHub Actions）
+## 0. 当前发布：v1.1.1（GitHub Actions，三平台）
 
-仓库：https://github.com/yunyu697/shellora · Release：https://github.com/yunyu697/shellora/releases/tag/v1.0.2
+仓库：https://github.com/yunyu697/shellora · Release：https://github.com/yunyu697/shellora/releases/tag/v1.1.1
 
-三平台均由 `.github/workflows/release.yml` 构建；Windows / macOS 产物已挂到 Release，
-Linux 产物保留在 Actions artifact（`linux-bundles`）。
+七个产物全部由 `.github/workflows/release.yml` 在同一 tag 上构建并挂到同一个 Release。
+publish job 会先校验 exe / msi / dmg / AppImage / deb 是否齐全，缺任一平台直接失败。
 
-| 文件 | 字节 | SHA-256 |
-|---|---:|---|
-| `Shellora_1.0.2_x64-setup.exe`（NSIS） | 5,777,706 | `6a3c57b3…889e2ca` |
-| `Shellora_1.0.2_x64_en-US.msi`（WiX） | 8,028,160 | `03d97f08…5922d8a` |
-| `Shellora_1.0.2_universal.dmg`（macOS） | 16,272,540 | `9da9fe89…93a237` |
+| 文件 | 平台 | 字节 | SHA-256 |
+|---|---|---:|---|
+| `Shellora_1.1.1_x64-setup.exe`（NSIS） | Windows x64 | 6,173,147 | `7748b9b14cce4bc975944369b9efa10be8e0f54aadce9775656b3658a1b56b5c` |
+| `Shellora_1.1.1_x64_en-US.msi`（WiX） | Windows x64 | 8,556,544 | `e6d219f74b1a164e344c99036026d24172ad371cf90042d57ead996be9e4992a` |
+| `Shellora_1.1.1_universal.dmg` | macOS universal | 17,288,410 | `493e98050f9d4cd4aab1b28a474ae9cd1214c72a89c8a8b5e75fc002baed39a6` |
+| `Shellora.app.tar.gz` | macOS universal（.app 包） | 17,698,748 | `9000c128a21f28373fe98d7826ba1c010597911bb2e7da95c2b51c082280df60` |
+| `Shellora_1.1.1_amd64.AppImage` | Linux x64 | 88,230,392 | `6e456b54e9bb1038356d055cfb62379e2bb8f91bdceaf65544964032e96d0736` |
+| `Shellora_1.1.1_amd64.deb` | Linux x64 | 10,404,052 | `edd9a6c07ae6513c0378844455529de3cb902c4049b2fede6aed89389ceb4e41` |
+| `Shellora-1.1.1-1.x86_64.rpm` | Linux x64 | 10,411,116 | `1e56e035be30ae4b188f4d9a68b77386c59ed1dfc94794eafaa82c6018d95301` |
 
-完整哈希见 Release 附件 `SHA256SUMS.txt` 与 [manifest-1.0.2.json](manifest-1.0.2.json)。
+完整哈希见 Release 附件 `SHA256SUMS.txt` 与 [manifest-1.1.1.json](manifest-1.1.1.json)。
 
-本次发布修复了两个 CI 问题：Windows 冒烟脚本硬编码 `1.0.0` 版本断言；macOS 在未配置
-Apple Secrets 时仍传入空 `APPLE_CERTIFICATE` 导致签名导入失败。
+本地验证边界（不要含糊）：Windows 的 NSIS 包在本机静默安装 → 版本 1.1.1 → 启动成功；
+MSI 与 macOS / Linux 的全部产物**只经过 CI 构建**，本机没有对应系统，未实机运行。
+
+
+本次发布解决的 CI 问题：`macos-14` 在本仓库返回「The configuration 'macos-14-arm64-us-default'
+is not supported」（runner 从未分配，job 1 秒内 cancelled），改用 `macos-latest` 后 normal 调度；
+publish 增加三平台齐全硬校验，避免「其它平台继续跑」把缺件发布出去。
+
+上一版 v1.1.0 的 Release 只有 Windows 产物（当时同一 tag 的 release 工作流在 macOS job 卡住后被取消），
+其 Windows 包与哈希仍保留，三平台从此版本起成为常态。
 
 ## 1. 版本号来源
 
@@ -80,16 +92,19 @@ Apple Secrets 时仍传入空 `APPLE_CERTIFICATE` 导致签名导入失败。
 - WebView2 由 Microsoft 按其分发条款提供，见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
 - 内网/离线改用 `offlineInstaller`（包体增大）或 `fixedRuntime`（固定版本），当前未采用。
 
-## 3. 跨平台（脚本就绪、未构建）
+## 3. 跨平台（三平台均由 CI 构建）
 
 | 平台 | 产物 | 状态 |
 |---|---|---|
-| Windows | NSIS + MSI | 本机已构建（见第 2 节） |
-| macOS | universal `.app` + `.dmg`（`codesign --deep --options runtime` + `notarytool` + `stapler`） | **未构建**；`scripts/build-release.sh` 与 CI 矩阵已就绪，签名/公证需 Apple 证书 secrets |
-| Linux | AppImage + deb + rpm（webKit2GTK 4.1 运行时依赖） | **未构建**；CI 已声明 `libwebkit2gtk-4.1-dev` 等前置；未出 Flatpak 清单（M6 标注为可选） |
+| Windows | NSIS + MSI | CI 构建；NSIS 在本机做过静默安装 + 启动冒烟 |
+| macOS | universal `.app` + `.dmg`（未签名 / 未公证） | CI 构建（`macos-latest`，`universal-apple-darwin`）；本机无 macOS，未实机运行 |
+| Linux | AppImage + deb + rpm（webKit2GTK 4.1 运行时依赖） | CI 构建（`ubuntu-22.04`）；本机无 Linux，未实机运行 |
 
-CI：[`\.github/workflows/release.yml`](../.github/workflows/release.yml)，tag `v*` 触发，
-三平台构建 → 汇总 `SHA256SUMS.txt` → Release。Windows job 内含冒烟。
+CI：[`.github/workflows/release.yml`](../../.github/workflows/release.yml)，tag `v*` 触发，
+windows / macos / linux 三个 job 并行 → publish 汇总 `SHA256SUMS.txt` 与
+`manifest-<ver>.json`（含全部平台）→ 同一个 Release。任一平台 job 失败，publish 不会执行。
+签名/公证缺失时允许产出未签名包并在 README「已知限制」中标注，不阻塞发布。
+
 
 ## 4. 自动更新（tauri-plugin-updater）
 
@@ -215,7 +230,10 @@ CI：[`\.github/workflows/release.yml`](../.github/workflows/release.yml)，tag 
 | 1.0.3 | 有 | 有 | exe/msi/dmg | 曾为 Latest |
 | 1.0.4–1.0.8 | 无 | **无** | 仅本地产物 | — |
 | 1.0.9 | 有（本地补推） | 已补发 | exe/msi/SHA256SUMS/manifest | 否 |
-| 1.0.10 | 有（本地补推） | 已补发 | exe/msi/SHA256SUMS/manifest | **是** |
+| 1.0.10 | 有（本地补推） | 已补发 | exe/msi/SHA256SUMS/manifest | 否 |
+| 1.1.0 | 有 | 有 | exe/msi/SHA256SUMS/manifest | 曾为 Latest（仅 Windows 产物） |
+| 1.1.1 | 有 | 有 | exe/msi/dmg/app.tar.gz/AppImage/deb/rpm/SHA256SUMS/manifest/latest.json | **是**（首个三平台版本） |
 
-断点结论：**从 1.0.4 起只在本地产物、未发 Release**；1.0.9 与 1.0.10 已按本流程补发并核对
-远端 digest。1.0.4–1.0.8 的安装包在本地 `src-tauri/target/release/bundle` 下，可按同流程补发。
+断点结论：**从 1.0.4 起只在本地产物、未发 Release**；1.0.9 / 1.0.10 已按本流程补发并核对
+远端 digest。1.1.0 的 release 工作流因 `macos-14` runner 不可用被取消，只留下 Windows 产物；
+从 **1.1.1** 起三平台由 CI 同 tag 构建并一起发布。

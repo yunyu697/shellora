@@ -12,7 +12,7 @@ Shellora 是一个跨平台 SSH 终端与 SFTP 双栏文件管理器，基于 Ta
 |---|---|---|
 | Windows x64 | `Shellora_<ver>_x64-setup.exe`、`Shellora_<ver>_x64_en-US.msi` | NSIS 按用户安装 / MSI；自带 WebView2 引导安装 |
 | macOS（Universal） | `Shellora_<ver>_universal.dmg` | 同时包含 arm64 与 x86_64，另附 `.app.tar.gz` |
-| Linux x64 | `Shellora_<ver>_amd64.AppImage`、`Shellora_<ver>_amd64.deb`、`Shellora_<ver>-1.x86_64.rpm` | AppImage 免安装；deb/rpm 走系统包管理器 |
+| Linux x64 | `Shellora_<ver>_amd64.AppImage`、`Shellora_<ver>_amd64.deb`、`Shellora-<ver>-1.x86_64.rpm` | AppImage 免安装；deb/rpm 走系统包管理器 |
 
 同目录附 `SHA256SUMS.txt` 与 `manifest-<ver>.json`（全平台产物的字节数、SHA-256 与构建来源）。
 
