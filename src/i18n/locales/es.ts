@@ -138,6 +138,7 @@ const catalog: Record<string, string> = {
   "覆盖中": "Superposición",
   "文件面板已收起": "Panel de archivos contraído",
   "玻璃拟态关闭 · 实色面板": "Efecto vidrio desactivado · panel sólido",
+  "玻璃拟态关": "Vidrio off",
   "密钥类型": "Tipo de clave",
   "SHA256（默认）": "SHA256 (predeterminado)",
   "已信任": "Confiable",

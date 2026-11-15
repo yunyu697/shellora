@@ -1079,6 +1079,13 @@ export default function App() {
     ? `${activeTab.label} · ${STATE_TEXT[activeTab.state.state] ?? activeTab.state.state}`
     : tr("无活动会话");
 
+  const panelStatus = panelOpen
+    ? tr("文件面板 · {mode} · {width}px", {
+        mode: panelLayout === "push" ? tr("挤压中") : tr("覆盖中"),
+        width: Math.round(panelWidth),
+      })
+    : tr("文件面板已收起");
+
   const onTitleBarMouseDown = (ev: ReactMouseEvent) => {
     if (!IS_TAURI || ev.button !== 0) return;
     const el = ev.target as HTMLElement;
@@ -1164,7 +1171,10 @@ export default function App() {
 
         <div className="sb-tabs" role="tablist" aria-label={tr("会话")}>
           {tabs.length === 0 ? (
-            <span className="sb-empty">{tr("无活动会话 · 从会话库打开一个连接")}</span>
+            <span className="sb-empty">
+              <span className="sb-empty__full">{tr("无活动会话 · 从会话库打开一个连接")}</span>
+              <span className="sb-empty__short">{tr("无活动会话")}</span>
+            </span>
           ) : (
             tabs.map((tab) => (
               <button
@@ -1475,7 +1485,7 @@ export default function App() {
 
             {railTab !== "saved" && recentRows.length > 0 ? (
               <>
-                <div className="glabel" style={{ marginTop: "var(--sp-3)" }}>
+                <div className="glabel">
                   {tr("最近会话")} <span className="n">{recentRows.length}</span>
                 </div>
                 {recentRows.map((row) => {
@@ -1960,7 +1970,11 @@ export default function App() {
             </div>
           <>
             <aside
-              className={panelWidth && panelWidth < 420 ? "drawer drawer--compact" : "drawer"}
+              className={
+                "drawer" +
+                (panelWidth && panelWidth < 420 ? " drawer--compact" : "") +
+                (panelWidth && panelWidth < 560 ? " drawer--opsicon" : "")
+              }
               aria-label={tr("文件面板")}
               aria-hidden={panelOpen ? "false" : "true"}
             >
@@ -2234,30 +2248,25 @@ export default function App() {
       </div>
 
       <footer className="statusbar">
-        <span className="cell">
+        <span className="cell" title={terminalTitle}>
           <span className={activeTab?.state.state === "ready" ? "dot" : "dot off"} />
           <b>{terminalTitle}</b>
         </span>
-        <span className="cell">
+        <span className="cell cell--mid">
           {tr("本地")} <b className="num">{(sftpSummary?.active ?? 0) + (sftpSummary?.queued ?? 0)}</b> {tr("个传输")}
         </span>
-        <span className="cell">
+        <span className="cell cell--mid">
           SFTP <b className="num">{sftpSummary?.done ?? 0}</b> {tr("已完成")}
         </span>
-        <span className="cell">
-          <b>
-            {panelOpen
-              ? tr("文件面板 · {mode} · {width}px", {
-                  mode: panelLayout === "push" ? tr("挤压中") : tr("覆盖中"),
-                  width: Math.round(panelWidth),
-                })
-              : tr("文件面板已收起")}
-          </b>
+        <span className="cell cell--low" title={panelStatus}>
+          <b>{panelStatus}</b>
         </span>
-        <span className="cell">{message ? message.text : tr("玻璃拟态关闭 · 实色面板")}</span>
+        <span className="cell" title={message ? message.text : tr("玻璃拟态关闭 · 实色面板")}>
+          {message ? message.text : tr("玻璃拟态关")}
+        </span>
         <span className="grow" />
-        <span className="cell">{theme === "light" ? "LIGHT" : "DARK"}</span>
-        <span className="cell">Shellora {appVersion ? `v${appVersion}` : "dev"}</span>
+        <span className="cell cell--fixed">{theme === "light" ? "LIGHT" : "DARK"}</span>
+        <span className="cell cell--fixed">Shellora {appVersion ? `v${appVersion}` : "dev"}</span>
       </footer>
 
       {hostKeyPrompt ? (
