@@ -8,6 +8,7 @@
 //   2) 用 CDP 的 Emulation 设定精确视口与 devicePixelRatio（200% DPI 用 444×297@2x 模拟）；
 //   3) 逐区域截图（顶栏 / 左栏 / 文件表格 / 队列 / 设置页）；
 //   4) 在页面内测量：横向溢出、文本截断、行高挤压、按钮被文案撑破、实际字号分布、文本对比度。
+//   5) 截图去重：同一状态下一个元素矩形只落一份；整窗图按字节判重。「同区域不同名」非 0 即退出 1。
 //
 // 退出码：发现「无 title 的截断 / 溢出 / 挤压 / 对比度 < 4.5（小字号）」时返回 1，可直接进 CI。
 
@@ -393,9 +394,10 @@ async function main() {
           fullSeen.set(name, b64);
           write(name, b64);
         };
-        // 分区图：同一个元素矩形只落一个文件名；两个选择器命中同一块区域时判失败
-        const writeRegion = async (name, clip) => {
-          const key = `${clip.x},${clip.y},${clip.width}x${clip.height}`;
+        // 分区图：同一状态下同一个元素矩形只落一个文件名；两个选择器命中同一块区域时判失败。
+        // 按状态分组，是因为同一元素在「主界面 / 抽屉 / 连接页 / 设置页」各截一次是不同证据。
+        const writeRegion = async (state, name, clip) => {
+          const key = `${state}|${clip.x},${clip.y},${clip.width}x${clip.height}`;
           const prev = rectSeen.get(key);
           if (prev) {
             dupLocal.push({ rect: key, first: prev, dup: name });
@@ -406,11 +408,13 @@ async function main() {
         };
         writeFull(`${locale}-${vp.id}-main.png`, full.data);
         for (const [name, box] of Object.entries(data.regions)) {
-          if (name === ".settings-card") continue;
+          // 这两块在各自的状态里单独截：设置卡片在设置页，队列区在抽屉态（panel-queue2），
+          // 在这里再截一次就是同一矩形双存
+          if (name === ".settings-card" || name === ".queue2") continue;
           const w = Math.min(box.w, vp.width - Math.max(0, box.x));
           if (w <= 8 || box.h <= 8) continue;
           const clip = { x: Math.max(0, box.x), y: Math.max(0, box.y), width: w, height: Math.min(box.h, vp.height), scale: 1 };
-          await writeRegion(`${locale}-${vp.id}-${name.replace(/^\./, "").replace(/[^\w-]/g, "_")}.png`, clip);
+          await writeRegion("main", `${locale}-${vp.id}-${name.replace(/^\./, "").replace(/[^\w-]/g, "_")}.png`, clip);
         }
 
         report.push(summarize(locale, vp, data));
@@ -433,7 +437,7 @@ async function main() {
             scale: 1,
           };
           if (clip.width <= 8 || clip.height <= 8) continue;
-          await writeRegion(`${locale}-${vp.id}-panel-${name.replace(/^\./, "")}.png`, clip);
+          await writeRegion("drawer", `${locale}-${vp.id}-panel-${name.replace(/^\./, "")}.png`, clip);
         }
         report.push({ ...summarize(locale, vp, pd), panel: true });
 
@@ -475,7 +479,7 @@ async function main() {
             height: Math.min(box.h, vp.height - Math.max(0, box.y)),
             scale: 1,
           };
-          if (clip.width > 8 && clip.height > 8) await writeRegion(`${locale}-${vp.id}-connpage.png`, clip);
+          if (clip.width > 8 && clip.height > 8) await writeRegion("connect", `${locale}-${vp.id}-connpage.png`, clip);
         }
         report.push({ ...summarize(locale, vp, cn), connect: true });
 
@@ -516,7 +520,7 @@ async function main() {
             height: Math.min(box.h, vp.height - Math.max(0, box.y)),
             scale: 1,
           };
-          if (clip.width > 8 && clip.height > 8) await writeRegion(`${locale}-${vp.id}-settings-card.png`, clip);
+          if (clip.width > 8 && clip.height > 8) await writeRegion("settings", `${locale}-${vp.id}-settings-card.png`, clip);
         }
         report.push({ ...summarize(locale, vp, st.result.value), settings: true });
         dupAll.push(...dupLocal);
