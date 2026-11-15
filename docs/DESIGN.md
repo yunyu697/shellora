@@ -355,4 +355,6 @@ v2 的判断标准只有一条：**实际长时间使用是否顺手**。由此�
 
 同一轮的另一条：截图脚本自身要去重。`visual-matrix.mjs` 里 `.queue` 与 `.panel` 命中同一块区域，各存一份，导致 40 张图逐字节重复；现在按「状态 + 元素矩形」去重、整窗图按字节判重，跑完打印「同区域不同名 0 处」，非 0 即失败。
 
+中间产物的判据：**跑一次脚本就能再生成、且没有任何规范引用它**，就写进 `.gitignore`，不留在 `git status` 里。`design/v2/` 下的 `_*` 探针脚本、`shots-app/`、`shots-audit*/`、`shots-batch/`、`shots-real/`、`shots-ui/`、`report-*.json` 已按这条忽略；被规范引用过的 `shots/`、`shots-i18n/`、`shots-impl/` 等仍入库。
+
 2026-11-15 实测 `.git` 体积（只记数值）：`gc` 前 32,902,116 B（31.38 MiB，松散对象 1089 个）；`git gc --prune=now` 后 31,710,483 B（30.24 MiB，`size-pack` 30.12 MiB，松散对象 0 个）。

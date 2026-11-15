@@ -44,3 +44,12 @@ docs/release/latest.json
 Thumbs.db
 .vscode/
 .idea/
+
+# design/v2 下的一次性探针脚本与抓图输出：能重跑生成、无规范引用，不入库（判据见 docs/DESIGN.md §14.3）
+design/v2/_*
+design/v2/shots-app/
+design/v2/shots-audit*/
+design/v2/shots-batch/
+design/v2/shots-real/
+design/v2/shots-ui/
+design/v2/report-*.json
