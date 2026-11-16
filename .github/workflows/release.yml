@@ -266,6 +266,11 @@ jobs:
         # 上传只认 dist/*：里面是上一步从 upload-list.json 平铺出来的 17 个文件，路径不由 YAML 决定。
         # fail_on_unmatched_files 仍为 true —— dist/ 为空（暂存步骤被跳过或断言失效）必须失败，
         # 不能发出一个没有资产的 Release。
+        #
+        # 预发布（tag 带 `-alpha1` 这类后缀）：标 prerelease 且不接管 Latest，
+        # 保证 /releases/latest/download/latest.json 仍指向 1.1.2，正式版用户不会被推上来。
         with:
           files: dist/*
           fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
