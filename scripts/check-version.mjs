@@ -9,6 +9,9 @@ const problems = [];
 const notes = [];
 
 const VER = /\b(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)(\d+))?\b/g;
+// 唯一合法写法：X.Y.Z 或 X.Y.Z-alphaN / -betaN / -rcN（N 为数字）。
+// 用来抓 `1.2.0-alpha.1`、`1.2.0-preview`、`1.2.0-alpha` 这类「能被上面的宽松正则切出一段」的写法。
+const CANONICAL = /^\d+\.\d+\.\d+(?:-(alpha|beta|rc)\d+)?$/;
 
 function checkSegments(raw, where) {
   VER.lastIndex = 0;
@@ -31,6 +34,11 @@ const cargoVersion = cargo.match(/^version = "(.+)"$/m)?.[1];
 if (!cargoVersion) problems.push("Cargo.toml 缺少 [package] version");
 if (pkg.version !== cargoVersion) problems.push(`package.json=${pkg.version} 与 Cargo.toml=${cargoVersion} 不一致`);
 if (tauri.version !== cargoVersion) problems.push(`tauri.conf.json=${tauri.version} 与 Cargo.toml=${cargoVersion} 不一致`);
+if (cargoVersion && !CANONICAL.test(cargoVersion)) {
+  problems.push(
+    `版本号写法不合规：${cargoVersion}（只允许 X.Y.Z 或 X.Y.Z-alphaN/betaN/rcN；不支持 -alpha.1、-preview 等写法）`,
+  );
+}
 if (cargoVersion) checkSegments(cargoVersion, "版本号");
 
 // ---- 2. 文档与清单里的版本字面量 ----
