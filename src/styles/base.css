@@ -408,8 +408,8 @@ button {
 }
 
 .navpill .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--text-3);
 }
 
@@ -1257,8 +1257,8 @@ kbd {
 }
 
 .fhead .ib .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .fhead .ib:hover:not(:disabled) {
@@ -1841,8 +1841,8 @@ kbd {
 }
 
 .qhead2 .qb .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .qhead2 .qb:hover {
@@ -1884,8 +1884,8 @@ kbd {
 }
 
 .qrow2 .dtile .ic {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .qrow2 .dtile.up {
@@ -1996,8 +1996,8 @@ kbd {
 }
 
 .qrow2 .qa .ic {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .qrow2 .qa:hover:not(:disabled) {
@@ -4665,8 +4665,8 @@ select.in2 {
 }
 
 .drawer__x .ic {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   color: inherit;
 }
 
@@ -4812,8 +4812,8 @@ select.in2 {
 }
 
 .app--next .dop .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 /* 抽屉宽度低于 560px 时操作行只留图标：7 个带字按钮约需 503px 内宽，430px 抽屉放不下 */
@@ -5015,8 +5015,8 @@ select.in2 {
 }
 
 .app--next .topbar .iconbtn .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .app--next .sessionbar--inline {
@@ -5031,8 +5031,8 @@ select.in2 {
 }
 
 .app--next .sb-toggle .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .app--next .sb-tabs {
@@ -5208,8 +5208,8 @@ select.in2 {
 }
 
 .app--next .frow .ftile .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .app--next .frow .chk {
@@ -5238,8 +5238,8 @@ select.in2 {
 }
 
 .app--next .crumb2 .cb .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 /* 右键菜单：行高 30 → 34，字号 12.5 → 13 */
@@ -5290,8 +5290,8 @@ select.in2 {
 }
 
 .app--next .wc svg {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   fill: none;
   stroke: currentColor;
   stroke-width: var(--isw-thin);
@@ -5485,8 +5485,8 @@ select.in2 {
 }
 
 .app--next .sb-btn--icon .ic {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .app--next .sb-btn--icon:hover {
